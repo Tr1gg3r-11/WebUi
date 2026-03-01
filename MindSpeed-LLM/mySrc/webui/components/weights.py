@@ -1,7 +1,7 @@
 from ...extras.packages import is_gradio_available
 if is_gradio_available():
     import gradio as gr
-from ...extras.constants import SUPPORTED_MODEL, PP_SUPPORTED_MODEL, TP_SUPPORTED_MODEL, CP_SUPPORTED_MODEL
+from ...extras.constants import SUPPORTED_MODEL
 from ...handler.model import download, convert_hf2mcore
 
 def build_weights_tab() -> None:
@@ -65,22 +65,22 @@ def build_weights_tab() -> None:
                 precision=0,
                 interactive=True
             )
-        def update_parallel_visibility(model_id: str) -> list[gr.Number, gr.Number, gr.Number, gr.Markdown]:
-            tp_visible = model_id in TP_SUPPORTED_MODEL
-            pp_visible = model_id in PP_SUPPORTED_MODEL
-            cp_visible = model_id in CP_SUPPORTED_MODEL
-            return [
-                gr.update(visible=tp_visible),
-                gr.update(visible=pp_visible),
-                gr.update(visible=cp_visible),
-                gr.update(visible=tp_visible or pp_visible or cp_visible)
-            ]
+        # def update_parallel_visibility(model_id: str) -> list[gr.Number, gr.Number, gr.Number, gr.Markdown]:
+        #     tp_visible = model_id in TP_SUPPORTED_MODEL
+        #     pp_visible = model_id in PP_SUPPORTED_MODEL
+        #     cp_visible = model_id in CP_SUPPORTED_MODEL
+        #     return [
+        #         gr.update(visible=tp_visible),
+        #         gr.update(visible=pp_visible),
+        #         gr.update(visible=cp_visible),
+        #         gr.update(visible=tp_visible or pp_visible or cp_visible)
+        #     ]
         
-        model_id.change(
-            fn=update_parallel_visibility,
-            inputs=[model_id],
-            outputs=[tp, pp, cp, md]
-        )
+        # model_id.change(
+        #     fn=update_parallel_visibility,
+        #     inputs=[model_id],
+        #     outputs=[tp, pp, cp, md]
+        # )
         with gr.Row():
             load_dir = gr.Textbox(
                 label="加载目录",

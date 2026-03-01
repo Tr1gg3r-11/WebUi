@@ -3,7 +3,7 @@ if is_gradio_available():
     import gradio as gr
 from ...handler.train import stop
 from ...handler.model import convert_mcore2hf
-from ...extras.constants import SUPPORTED_MODEL, PP_SUPPORTED_MODEL, TP_SUPPORTED_MODEL, CP_SUPPORTED_MODEL
+from ...extras.constants import SUPPORTED_MODEL
 from ...handler.train import trainer_log, train_thread
 from ...extras.ploting import gen_loss_plot
 import time
@@ -111,22 +111,22 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
                 precision=0,
                 interactive=True
             )
-        def update_parallel_visibility(model_id: str) -> list[gr.Number, gr.Number, gr.Number, gr.Markdown]:
-            tp_visible = model_id in TP_SUPPORTED_MODEL
-            pp_visible = model_id in PP_SUPPORTED_MODEL
-            cp_visible = model_id in CP_SUPPORTED_MODEL
-            return [
-                gr.update(visible=tp_visible),
-                gr.update(visible=pp_visible),
-                gr.update(visible=cp_visible),
-                gr.update(visible=tp_visible or pp_visible or cp_visible)
-            ]
+        # def update_parallel_visibility(model_id: str) -> list[gr.Number, gr.Number, gr.Number, gr.Markdown]:
+        #     tp_visible = model_id in TP_SUPPORTED_MODEL
+        #     pp_visible = model_id in PP_SUPPORTED_MODEL
+        #     cp_visible = model_id in CP_SUPPORTED_MODEL
+        #     return [
+        #         gr.update(visible=tp_visible),
+        #         gr.update(visible=pp_visible),
+        #         gr.update(visible=cp_visible),
+        #         gr.update(visible=tp_visible or pp_visible or cp_visible)
+        #     ]
         
-        model_id.change(
-            fn=update_parallel_visibility,
-            inputs=[model_id],
-            outputs=[tp, pp, cp, md]
-        )
+        # model_id.change(
+        #     fn=update_parallel_visibility,
+        #     inputs=[model_id],
+        #     outputs=[tp, pp, cp, md]
+        # )
         convert_btn = gr.Button("开始转换")
         convert_btn.click(
             fn=convert_mcore2hf,

@@ -1,9 +1,9 @@
 RUNNING_LOG = "running_log.txt"
 
 SUPPORTED_MODEL=["Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B", "Test_Other"]
-TP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B"}
-PP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B"}
-CP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B"}
+# TP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B"}
+# PP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B"}
+# CP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B"}
 
 SFT_FULL = {}
 SFT_LORA = {}
@@ -35,9 +35,13 @@ status_map = {
 }
 
 DATASETS_SH={
-    "alpaca-HuggingFace":"mySrc/scripts/alpaca-HuggingFace.sh",
-    "alpaca-ModelScope":"mySrc/scripts/alpaca-ModelScope.sh",
+    "alpaca-HuggingFace":"mySrc/scripts/datasets/alpaca-HuggingFace.sh",
+    "alpaca-ModelScope":"mySrc/scripts/datasets/alpaca-ModelScope.sh",
 }
 DATA_CONVERT_SH={
     "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/data_convert_qwen25_pretrain.sh",
+}
+MODEL_DOWNLOAD_SH={
+    "Qwen/Qwen2.5-0.5B-ModelScope":"mySrc/scripts/models/qwen2.5-0point5b-ModelScope.sh",
+    "Qwen/Qwen2.5-0.5B-ModelScope":"mySrc/scripts/models/qwen2.5-0point5b-ModelScope.sh",
 }

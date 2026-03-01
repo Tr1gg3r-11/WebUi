@@ -1,7 +1,14 @@
-from ..extras.constants import PP_SUPPORTED_MODEL, TP_SUPPORTED_MODEL, CP_SUPPORTED_MODEL
+from ..extras.constants import PP_SUPPORTED_MODEL, TP_SUPPORTED_MODEL, CP_SUPPORTED_MODEL, MODEL_DOWNLOAD_SH
 from ..extras.error import validate_value
+import subprocess
+import os
+
 def download(platform: str, model_id: str, cache_dir: str) -> None:
-    print(f"从{platform}下载{model_id}到{cache_dir}")
+    target = model_id+'-'+platform
+    file_path = MODEL_DOWNLOAD_SH[target]
+    my_env = os.environ.copy()
+    my_env.update({"DIR": cache_dir})
+    subprocess.run(['bash', file_path], env=my_env)
 
 def convert_hf2mcore(load_dir: str, save_dir: str, model_id: str, tp: int, cp: int, pp: int) -> None:
     values = [tp, cp, pp]
