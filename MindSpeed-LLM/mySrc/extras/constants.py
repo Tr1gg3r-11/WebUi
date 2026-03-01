@@ -42,6 +42,15 @@ DATA_CONVERT_SH={
     "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/data_convert_qwen25_pretrain.sh",
 }
 MODEL_DOWNLOAD_SH={
+    "Qwen/Qwen2.5-0.5B-HuggingFace":"mySrc/scripts/models/qwen2.5-0point5b-HuggingFace.sh",
     "Qwen/Qwen2.5-0.5B-ModelScope":"mySrc/scripts/models/qwen2.5-0point5b-ModelScope.sh",
-    "Qwen/Qwen2.5-0.5B-ModelScope":"mySrc/scripts/models/qwen2.5-0point5b-ModelScope.sh",
+}
+MODEL_CONVERT_HF2MCORE_SH={
+    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_hf2mcore.sh",
+}
+MODEL_CONVERT_MCORE2HF_SH={
+    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf.sh",
+}
+MODEL_CONVERT_MCORE2HF_LORA_SH={
+    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf_lora.sh",
 }
