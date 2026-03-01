@@ -71,7 +71,7 @@ def build_datasets_tab() -> None:
             tokenizer_path = gr.Textbox(
                 label="目标模型的tokenizer原数据文件夹",
                 placeholder="请输入目标模型转换前的文件夹路径",
-                value="./model_from_hf/qwen2.5-7b-hf/",
+                value="./models_from_hf/qwen2.5-7b-hf/",
                 interactive=True
             )
             workers = gr.Number(
@@ -81,7 +81,7 @@ def build_datasets_tab() -> None:
                 interactive=True
             )
         def tokenizer_path_change(model_id: gr.Dropdown):
-            return gr.update(value=f"./model_from_hf/{model_id}-hf/")
+            return gr.update(value=f"./models_from_hf/{model_id}-hf/")
         model_id.change(
             fn=tokenizer_path_change,
             inputs=[model_id],

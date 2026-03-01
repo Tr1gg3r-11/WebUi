@@ -48,7 +48,7 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
             )
             tokenizer_path = gr.Textbox(
                 label="数据集转换后路径",
-                value="./model_from_hf/your_model/",
+                value="./models_from_hf/your_model/",
                 interactive=True
             )
         md = gr.Markdown("> 💡 提示:此处并行设置应与**模型权重转换**时设置保持一致")
