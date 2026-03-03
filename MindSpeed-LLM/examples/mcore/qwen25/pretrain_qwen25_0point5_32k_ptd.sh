@@ -1,25 +1,25 @@
 #!/bin/bash
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-NPUS_PER_NODE=2
-MASTER_ADDR=localhost
-MASTER_PORT=6011
-NNODES=1
-NODE_RANK=0
+NPUS_PER_NODE=${NPUS_PER_NODE}
+MASTER_ADDR=${MASTER_ADDR}
+MASTER_PORT=${MASTER_PORT}
+NNODES=${NNODES}
+NODE_RANK=${NODE_RANK}
 WORLD_SIZE=$(($NPUS_PER_NODE*$NNODES))
 
 # please fill these path configurations
-CKPT_LOAD_DIR="../autodl-tmp/model_weights/qwen2.5_mcore/"
-CKPT_SAVE_DIR="../autodl-tmp/ckpt/qwen25-0point5b"
-DATA_PATH="../autodl-tmp/dataset/alpaca_text_document"
-TOKENIZER_PATH="../autodl-tmp/model_from_hf/qwen2.5-0point5b-hf/"
+CKPT_LOAD_DIR=${LOAD_DIR}
+CKPT_SAVE_DIR=${SAVE_DIR}
+DATA_PATH=${DATA_PATH}
+TOKENIZER_PATH=${TOKENIZER_PATH}
 
-TP=1
-PP=2
-CP=1
-MBS=1
-GBS=8
-SEQ_LEN=1024
+TP=${TP}
+PP=${PP}
+CP=${CP}
+MBS=${MBS}
+GBS=${GBS}
+SEQ_LEN=${SEQ_LEN}
 CP_ALGO=megatron_cp_algo
 
 DISTRIBUTED_ARGS="
@@ -62,8 +62,8 @@ GPT_ARGS="
     --hidden-dropout 0.0 \
     --make-vocab-size-divisible-by 1 \
     --padded-vocab-size 151936 \
-    --lr 1.25e-6 \
-    --train-iters 10 \
+    --lr ${LR} \
+    --train-iters ${TRAIN_ITERS} \
     --lr-decay-style cosine \
     --lr-warmup-fraction 0.01 \
     --init-method-std 0.01 \

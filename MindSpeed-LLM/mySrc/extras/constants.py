@@ -20,10 +20,15 @@ MINIMUM = {
     'seq_length' : 1,
     'micro-batch-size': 1,
     'global-batch-size': 1,
-    'epochs' : 1,
+    'train_iters' : 1,
     '学习率' : 0
 }
 MAXIMUM = {
+}
+LR = {
+    'pretrain' : 1.25e-6,
+    'SFT(全参)' : 0.000,
+    'SFT(LoRA)' : 0.000,
 }
 
 status_map = {
@@ -53,4 +58,7 @@ MODEL_CONVERT_MCORE2HF_SH={
 }
 MODEL_CONVERT_MCORE2HF_LORA_SH={
     "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf_lora.sh",
+}
+PRETRAIN_SH={
+    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/pretrain_qwen25_0point5_32k_ptd.sh",
 }

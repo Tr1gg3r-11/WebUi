@@ -1,7 +1,7 @@
 from ...extras.packages import is_gradio_available
 if is_gradio_available():
     import gradio as gr
-from ...extras.constants import SUPPORTED_MODEL
+from ...extras.constants import SUPPORTED_MODEL, LR
 from ...handler.train import get_train_config
 
 def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
@@ -29,6 +29,18 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
             )
             master_port = gr.Number(label="端口号", value=6000, precision=0, interactive=True)
             nodes = gr.Number(label="节点数量", value=1, precision=0, interactive=True)
+            node_rank = gr.Dropdown(
+                choices = [],
+                label = "当前节点号",
+                interactive = True
+            )
+            def rank_update(nodes: gr.Number):
+                return gr.udpate(choices=list(range(nodes)))
+            nodes.change(
+                fn=rank_update,
+                inputs=nodes,
+                outputs=node_rank
+            )
         with gr.Row():
             load_dir = gr.Textbox(
                 label="模型转换后权重路径",
@@ -76,11 +88,14 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
         #     outputs=[tp, pp, cp, md]
         # )
         with gr.Row():
-            epochs = gr.Number(label="epochs", value=1, precision=0, interactive=True)
+            train_iters = gr.Number(label="train_iters", value=1, precision=0, interactive=True)
             lr = gr.Number(label="学习率", value=0.001, interactive=True)
+        def lr_update(mode : gr.Dropdown):
+            return gr.update(value=LR[mode])
+        mode.change(fn=lr_update, inputs=mode, outputs=lr)
         train_btn = gr.Button("开始训练")
         train_btn.click(
             fn=get_train_config,
-            inputs=[model_id, mode, npus, master_addr, master_port, nodes, load_dir, save_dir, data_path, tokenizer_path, tp, pp , cp, seq_len, mbs, gbs, epochs, lr],
+            inputs=[model_id, mode, npus, master_addr, master_port, nodes, node_rank, load_dir, save_dir, data_path, tokenizer_path, tp, pp , cp, seq_len, mbs, gbs, train_iters, lr],
             outputs=[tabs, status_indicator]
         )
