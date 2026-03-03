@@ -1,4 +1,3 @@
-from ..extras.constants import TP_SUPPORTED_MODEL,CP_SUPPORTED_MODEL,PP_SUPPORTED_MODEL
 from ..extras.packages import is_gradio_available
 if is_gradio_available():
     import gradio as gr

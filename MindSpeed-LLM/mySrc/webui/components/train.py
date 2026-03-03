@@ -30,12 +30,12 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
             master_port = gr.Number(label="端口号", value=6000, precision=0, interactive=True)
             nodes = gr.Number(label="节点数量", value=1, precision=0, interactive=True)
             node_rank = gr.Dropdown(
-                choices = [],
+                choices = [0],
                 label = "当前节点号",
                 interactive = True
             )
             def rank_update(nodes: gr.Number):
-                return gr.udpate(choices=list(range(nodes)))
+                return gr.update(choices=list(range(nodes)))
             nodes.change(
                 fn=rank_update,
                 inputs=nodes,
@@ -55,7 +55,7 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
         with gr.Row():
             data_path = gr.Textbox(
                 label="数据集转换后路径",
-                value="./dataset/dst/your_dataset_text_document",
+                value="./datasets/dst/your_dataset/your_dataset_text_document",
                 interactive=True
             )
             tokenizer_path = gr.Textbox(
@@ -88,8 +88,8 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
         #     outputs=[tp, pp, cp, md]
         # )
         with gr.Row():
-            train_iters = gr.Number(label="train_iters", value=1, precision=0, interactive=True)
-            lr = gr.Number(label="学习率", value=0.001, interactive=True)
+            train_iters = gr.Number(label="train_iters", value=2000, precision=0, interactive=True)
+            lr = gr.Number(label="学习率", value=LR['pretrain'], interactive=True)
         def lr_update(mode : gr.Dropdown):
             return gr.update(value=LR[mode])
         mode.change(fn=lr_update, inputs=mode, outputs=lr)

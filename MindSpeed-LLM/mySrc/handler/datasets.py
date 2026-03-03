@@ -10,6 +10,7 @@ def download(name: str, source: str, download_dir: str) -> None:
     file_path = DATASETS_SH[choice]
     my_env = os.environ.copy()
     my_env.update({"DIR": download_dir})
+    gr.Info("🚀 数据集下载中...", duration=1)
     subprocess.run(['bash', file_path], env=my_env)
 
 def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, model_id: str) -> None:
@@ -21,4 +22,5 @@ def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, mod
         "OUTPUT_PREFIX": save_dir,
         "WORKERS": str(workers),
     })
+    gr.Info("🚀 数据集格式转换中...", duration=1)
     subprocess.run(['bash', file_path], env=my_env)
