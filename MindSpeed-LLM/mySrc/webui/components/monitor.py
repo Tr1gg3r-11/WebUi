@@ -1,13 +1,53 @@
 from ...extras.packages import is_gradio_available
 if is_gradio_available():
     import gradio as gr
-from ...handler.train import stop
+from ...handler.train import stop, MBS, GBS
 from ...handler.model import convert_mcore2hf
 from ...extras.constants import SUPPORTED_MODEL
-from ...handler.train import trainer_log, train_thread
 from ...extras.ploting import gen_loss_plot
 import time
+import pickle
+from pathlib import Path
+import fcntl
+LOG_FILE = Path("./training_logs/trainer_log.jsonl")
+trainer_log = []
+def load_log_from_file():
+    if not LOG_FILE.exists():
+        print("not exists")
+        return
+    
+    with open(LOG_FILE, 'rb') as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_SH)
+            global trainer_log
+            trainer_log = pickle.load(f)
+        except Exception as e:
+            print(f"读取失败: {e}")
+            return 
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+def merge_log():
+    global trainer_log
+    threshold = int(GBS / MBS)
+    ct = 0
+    loss = []
+    step = 1
+    new_trainer_log = []
+    new_log = {}
+    for log in trainer_log:
+        loss.append(log['loss'])
+        ct += 1
+        if ct == threshold:
+            ct = 0
+            new_log['loss'] = avg(loss)
+            new_log['current_step'] = step
+            step += 1
+            loss.clear()
+            ct = 0
+            new_trainer_log.append(new_log)
+    trainer_log = new_trainer_log
 
+            
 def build_monitor_tab(status_indicator: gr.HTML) -> None:
     with gr.Column():
         gr.Markdown("### 训练过程数据展示")
@@ -20,6 +60,7 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
         with gr.Row():
             loss_plot = gr.Plot(label="损失曲线")
         def refresh() -> gr.Plot:
+            load_log_from_file()
             return gen_loss_plot(trainer_log)
         manual_refresh.click(
             fn=refresh,
@@ -33,6 +74,7 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
                 return [gr.skip(), current_time]
             if current_time - last_refresh < gap:
                 return [gr.skip(), last_refresh]
+            load_log_from_file()
             return [gen_loss_plot(trainer_log), current_time]
         last_refresh = gr.State(value=0.0)
         timer = gr.Timer(value=1)

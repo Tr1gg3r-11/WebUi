@@ -59,7 +59,7 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
                 interactive=True
             )
             tokenizer_path = gr.Textbox(
-                label="数据集转换后路径",
+                label="模型原始tokenizer路径",
                 value="./models_from_hf/your_model/",
                 interactive=True
             )

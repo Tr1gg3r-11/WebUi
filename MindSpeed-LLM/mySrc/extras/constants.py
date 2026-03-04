@@ -1,9 +1,9 @@
 RUNNING_LOG = "running_log.txt"
 
-SUPPORTED_MODEL=["Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B", "Test_Other"]
-# TP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B"}
-# PP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B", "Qwen/Qwen2.5-7B"}
-# CP_SUPPORTED_MODEL = {"Qwen/Qwen2.5-0.5B"}
+SUPPORTED_MODEL=["Qwen2.5-0.5B", "Qwen2.5-7B", "Test_Other"]
+# TP_SUPPORTED_MODEL = {"Qwen2.5-0.5B", "Qwen2.5-7B"}
+# PP_SUPPORTED_MODEL = {"Qwen2.5-0.5B", "Qwen2.5-7B"}
+# CP_SUPPORTED_MODEL = {"Qwen2.5-0.5B"}
 
 SFT_FULL = {}
 SFT_LORA = {}
@@ -44,21 +44,21 @@ DATASETS_SH={
     "alpaca-ModelScope":"mySrc/scripts/datasets/alpaca-ModelScope.sh",
 }
 DATA_CONVERT_SH={
-    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/data_convert_qwen25_pretrain.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/data_convert_qwen25_pretrain.sh",
 }
 MODEL_DOWNLOAD_SH={
-    "Qwen/Qwen2.5-0.5B-HuggingFace":"mySrc/scripts/models/qwen2.5-0point5b-HuggingFace.sh",
-    "Qwen/Qwen2.5-0.5B-ModelScope":"mySrc/scripts/models/qwen2.5-0point5b-ModelScope.sh",
+    "Qwen2.5-0.5B-HuggingFace":"mySrc/scripts/models/qwen2.5-0point5b-HuggingFace.sh",
+    "Qwen2.5-0.5B-ModelScope":"mySrc/scripts/models/qwen2.5-0point5b-ModelScope.sh",
 }
 MODEL_CONVERT_HF2MCORE_SH={
-    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_hf2mcore.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_hf2mcore.sh",
 }
 MODEL_CONVERT_MCORE2HF_SH={
-    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf.sh",
 }
 MODEL_CONVERT_MCORE2HF_LORA_SH={
-    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf_lora.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf_lora.sh",
 }
 PRETRAIN_SH={
-    "Qwen/Qwen2.5-0.5B":"examples/mcore/qwen25/pretrain_qwen25_0point5_32k_ptd.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/pretrain_qwen25_0point5_32k_ptd.sh",
 }

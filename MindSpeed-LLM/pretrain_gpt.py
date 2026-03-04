@@ -38,6 +38,26 @@ from megatron.core.models.gpt.gpt_layer_specs import (
 from mindspeed_llm.training.utils import  set_mtp_batch_list, get_mtp_batch_list
 from mindspeed_llm.core.transformer.multi_token_prediction import generate_mtp_batch_list_on_this_tp_rank
 
+##
+import fcntl
+import pickle
+from pathlib import Path
+trainer_log = []
+current_steps = 0
+LOG_FILE = Path("./training_logs/trainer_log.jsonl")
+def save_log_to_file():
+    global trainer_log
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(LOG_FILE, 'wb') as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            pickle.dump(trainer_log, f)
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+##
 
 def model_provider(pre_process=True, post_process=True) -> Union[GPTModel, megatron.legacy.model.GPTModel]:
     """Builds the model.
@@ -206,6 +226,13 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     # in core/pipeline_parallel/schedule.py::deallocate_output_tensor, calling .clone()
     # on loss[0] fixes this
     local_num_tokens = loss[1].clone().detach().to(torch.int)
+    log = {'loss' : reporting_loss[0].cpu()}
+    global current_steps, trainer_log
+    current_steps += 1
+    log['current_steps'] = current_steps
+    trainer_log.append(log)
+    save_log_to_file()
+    print(len(trainer_log))
     return (
         loss[0].clone(),
         local_num_tokens,
@@ -295,6 +322,11 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
 
 
 def main():
+    ##
+    global current_steps, trainer_log
+    trainer_log.clear()
+    current_steps = 0
+    ##
     # Temporary for transition to core datasets
     train_valid_test_datasets_provider.is_distributed = True
 

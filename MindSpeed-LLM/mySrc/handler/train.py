@@ -9,12 +9,16 @@ from ..extras.constants import status_map, PRETRAIN_SH
 from typing import Any
 import subprocess
 import os
+from pathlib import Path
+from datetime import datetime
+LOG_FILE = Path("./training_logs/trainer_log.jsonl")
 
 train_thread :Optional[threading.Thread] = None
 stop_training = threading.Event()
 training_completed = threading.Event()
 training_stopped = threading.Event()
-trainer_log = []
+MBS = 0
+GBS = 0
 def get_train_config(model_id: str,
                      mode: str,
                      npus: int,
@@ -55,6 +59,9 @@ def get_train_config(model_id: str,
     config['SEQ_LEN'] = seq_len
     config['MBS'] = mbs
     config['GBS'] = gbs
+    global MBS, GBS
+    MBS = mbs
+    GBS = gbs
     config['TRAIN_ITERS'] = train_iters
     config['LR'] = lr
     # for k,v in config.items():
@@ -98,7 +105,7 @@ def train(config: dict[str: Any], first_update_eve: threading.Event) -> None:
             if stop_training.is_set():
                 process.terminate()
                 try:
-                    process.wait(timeout=5)
+                    process.wait(timeout=1)
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
@@ -106,6 +113,10 @@ def train(config: dict[str: Any], first_update_eve: threading.Event) -> None:
                 training_stopped.set()
                 return
             time.sleep(0.1)
+    if LOG_FILE.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        new_name = LOG_FILE.parent / f"{config['model_id']}_{config['mode']}_{timestamp}.jsonl"
+        os.rename(LOG_FILE, new_name)
     training_completed.set()
 def stop() -> gr.HTML:
     global stop_training
