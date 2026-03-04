@@ -21,6 +21,7 @@ def load_log_from_file():
             fcntl.flock(f, fcntl.LOCK_SH)
             global trainer_log
             trainer_log = pickle.load(f)
+            merge_log()
         except Exception as e:
             print(f"读取失败: {e}")
             return 
