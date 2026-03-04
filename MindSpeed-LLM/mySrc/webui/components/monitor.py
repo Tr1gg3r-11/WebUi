@@ -1,7 +1,7 @@
 from ...extras.packages import is_gradio_available
 if is_gradio_available():
     import gradio as gr
-from ...handler.train import stop, MBS, GBS
+from ...handler.train import stop
 from ...handler.model import convert_mcore2hf
 from ...extras.constants import SUPPORTED_MODEL
 from ...extras.ploting import gen_loss_plot
@@ -9,41 +9,41 @@ import time
 import pickle
 from pathlib import Path
 import fcntl
+import os
 LOG_FILE = Path("./training_logs/trainer_log.jsonl")
 trainer_log = []
 def load_log_from_file():
     if not LOG_FILE.exists():
-        print("not exists")
+        print("日志文件不存在")
         return
     
     with open(LOG_FILE, 'rb') as f:
         try:
-            fcntl.flock(f, fcntl.LOCK_SH)
             global trainer_log
             trainer_log = pickle.load(f)
             merge_log()
         except Exception as e:
             print(f"读取失败: {e}")
-            return 
-        finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
 def merge_log():
     global trainer_log
+    MBS = int(os.environ['MBS'])
+    GBS = int(os.environ['GBS'])
     threshold = int(GBS / MBS)
+    print('threshold: ', threshold)
     ct = 0
     loss = []
     step = 1
     new_trainer_log = []
-    new_log = {}
     for log in trainer_log:
         loss.append(log['loss'])
         ct += 1
         if ct == threshold:
             ct = 0
-            new_log['loss'] = avg(loss)
-            new_log['current_step'] = step
+            new_log = {}
+            new_log['loss'] = sum(loss) / len(loss)
+            new_log['current_steps'] = step
             step += 1
-            loss.clear()
+            loss = []
             ct = 0
             new_trainer_log.append(new_log)
     trainer_log = new_trainer_log

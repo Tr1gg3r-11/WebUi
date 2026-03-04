@@ -49,14 +49,13 @@ def save_log_to_file():
     global trainer_log
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     
-    with open(LOG_FILE, 'wb') as f:
-        try:
-            fcntl.flock(f, fcntl.LOCK_EX)
-            pickle.dump(trainer_log, f)
-            f.flush()
-            os.fsync(f.fileno())
-        finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
+    temp_file = LOG_FILE.with_suffix('.tmp')
+    with open(temp_file, 'wb') as f:
+        pickle.dump(trainer_log, f)
+        f.flush()
+        os.fsync(f.fileno())
+    
+    temp_file.replace(LOG_FILE)
 ##
 
 def model_provider(pre_process=True, post_process=True) -> Union[GPTModel, megatron.legacy.model.GPTModel]:
@@ -226,13 +225,12 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     # in core/pipeline_parallel/schedule.py::deallocate_output_tensor, calling .clone()
     # on loss[0] fixes this
     local_num_tokens = loss[1].clone().detach().to(torch.int)
-    log = {'loss' : reporting_loss[0].cpu()}
+    log = {'loss' : reporting_loss[0].cpu() / reporting_loss[1].cpu()}
     global current_steps, trainer_log
     current_steps += 1
     log['current_steps'] = current_steps
     trainer_log.append(log)
     save_log_to_file()
-    print(len(trainer_log))
     return (
         loss[0].clone(),
         local_num_tokens,

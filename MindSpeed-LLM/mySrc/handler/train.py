@@ -17,8 +17,6 @@ train_thread :Optional[threading.Thread] = None
 stop_training = threading.Event()
 training_completed = threading.Event()
 training_stopped = threading.Event()
-MBS = 0
-GBS = 0
 def get_train_config(model_id: str,
                      mode: str,
                      npus: int,
@@ -59,9 +57,8 @@ def get_train_config(model_id: str,
     config['SEQ_LEN'] = seq_len
     config['MBS'] = mbs
     config['GBS'] = gbs
-    global MBS, GBS
-    MBS = mbs
-    GBS = gbs
+    os.environ['MBS'] = str(mbs)
+    os.environ['GBS'] = str(gbs)
     config['TRAIN_ITERS'] = train_iters
     config['LR'] = lr
     # for k,v in config.items():
