@@ -13,4 +13,4 @@ python convert_ckpt.py \
     --target-pipeline-parallel-size ${PP} \
     --add-qkv-bias \
     --load-dir ${LOAD_DIR} \
-    --save-dir ${SAVE_DIR}/  # 需要填入原始HF模型路径，新权重会存于 ${SAVE_DIR}/mg2hg/
+    --save-dir ${SAVE_DIR}  # 需要填入原始HF模型路径，新权重会存于 ${SAVE_DIR}mg2hg/

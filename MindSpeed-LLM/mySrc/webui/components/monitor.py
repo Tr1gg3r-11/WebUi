@@ -95,8 +95,8 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
         )
         
 
-        stop_btn = gr.Button("终止训练")
-        stop_btn.click(fn=stop, outputs=status_indicator)
+        # stop_btn = gr.Button("终止训练")
+        # stop_btn.click(fn=stop, outputs=status_indicator)
         gr.Markdown("### 格式转换")
         with gr.Row():
             model_id = gr.Dropdown(
@@ -114,13 +114,13 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
             save_dir = gr.Textbox(
                 label="保存目录",
                 placeholder="请输入文件夹路径",
-                value=f"./models_from_hf/your_model/",
+                value=f"./models_trained_hf/your_model/",
                 interactive=True
             )
         def update_load_dir(model_id: str) -> gr.Textbox:
             return gr.update(value=f"./models_mcore_weights/{model_id}/")
         def update_save_dir(model_id: str) -> gr.Textbox:
-            return gr.update(value=f"./models_from_hf/{model_id}/")
+            return gr.update(value=f"./models_trained_hf/{model_id}/")
         model_id.change(
             fn=update_load_dir,
             inputs=model_id,

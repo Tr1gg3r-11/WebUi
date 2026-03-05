@@ -9,6 +9,7 @@ from ..extras.constants import status_map, PRETRAIN_SH
 from typing import Any
 import subprocess
 import os
+import signal
 from pathlib import Path
 from datetime import datetime
 LOG_FILE = Path("./training_logs/trainer_log.jsonl")
@@ -97,14 +98,14 @@ def train(config: dict[str: Any], first_update_eve: threading.Event) -> None:
         for k,v in config.items():
             if not k in ['mode', 'model_id']:
                 my_env[k] = str(v)
-        process = subprocess.Popen(['bash', file_path], env=my_env)
+        process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
         while process.poll() is None:
             if stop_training.is_set():
-                process.terminate()
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                 try:
-                    process.wait(timeout=1)
+                    process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
-                    process.kill()
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                     process.wait()
                 stop_training.clear()
                 training_stopped.set()
