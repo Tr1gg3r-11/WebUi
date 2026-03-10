@@ -29,7 +29,7 @@ def merge_log():
     MBS = int(os.environ['MBS'])
     GBS = int(os.environ['GBS'])
     threshold = int(GBS / MBS)
-    print('threshold: ', threshold)
+    # print('threshold: ', threshold)
     ct = 0
     loss = []
     step = 1
