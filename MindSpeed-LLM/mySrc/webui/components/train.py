@@ -4,7 +4,7 @@ if is_gradio_available():
 from ...extras.constants import SUPPORTED_MODEL, LR
 from ...handler.train import get_train_config
 
-def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
+def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML, mode: gr.Dropdown, shared_pack: gr.Checkbox) -> None:
     with gr.Column():
         gr.Markdown("### 训练任务配置")
         with gr.Row():
@@ -14,11 +14,8 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
                 value=SUPPORTED_MODEL[0],
                 interactive=True
             )
-            mode = gr.Dropdown(
-                choices=["pretrain", "SFT(全参)", "SFT(LoRA)"],
-                value="pretrain",
-                interactive=True
-            )
+            mode.render()
+            shared_pack.render()
             npus = gr.Number(label="每节点npu卡数", value=8, precision=0, interactive=True)
         with gr.Row():
             master_addr = gr.Textbox(
@@ -96,6 +93,6 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
         train_btn = gr.Button("开始训练")
         train_btn.click(
             fn=get_train_config,
-            inputs=[model_id, mode, npus, master_addr, master_port, nodes, node_rank, load_dir, save_dir, data_path, tokenizer_path, tp, pp , cp, seq_len, mbs, gbs, train_iters, lr],
+            inputs=[shared_pack, model_id, mode, npus, master_addr, master_port, nodes, node_rank, load_dir, save_dir, data_path, tokenizer_path, tp, pp , cp, seq_len, mbs, gbs, train_iters, lr],
             outputs=[tabs, status_indicator]
         )

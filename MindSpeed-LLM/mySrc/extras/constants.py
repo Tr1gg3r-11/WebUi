@@ -44,7 +44,9 @@ DATASETS_SH={
     "alpaca-ModelScope":"mySrc/scripts/datasets/alpaca-ModelScope.sh",
 }
 DATA_CONVERT_SH={
-    "Qwen2.5-0.5B":"examples/mcore/qwen25/data_convert_qwen25_pretrain.sh",
+    "Qwen2.5-0.5B_pretrain":"examples/mcore/qwen25/data_convert_qwen25_pretrain.sh",
+    "Qwen2.5-0.5B_sft":"examples/mcore/qwen25/data_convert_qwen25_instruction.sh",
+    "Qwen2.5-0.5B_sft_pack":"examples/mcore/qwen25/data_convert_qwen25_instruction_pack.sh",
 }
 MODEL_DOWNLOAD_SH={
     "Qwen2.5-0.5B-HuggingFace":"mySrc/scripts/models/qwen2.5-0point5b-HuggingFace.sh",
@@ -61,4 +63,13 @@ MODEL_CONVERT_MCORE2HF_LORA_SH={
 }
 PRETRAIN_SH={
     "Qwen2.5-0.5B":"examples/mcore/qwen25/pretrain_qwen25_0point5_32k_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen25/pretrain_qwen25_0point5_32k_ptd.sh",
+}
+SFT_LORA_SH={
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_lora_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_lora_ptd.sh",
+}
+SFT_SH={
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_full_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_full_pack.sh",
 }

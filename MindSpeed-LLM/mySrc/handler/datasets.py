@@ -13,8 +13,15 @@ def download(name: str, source: str, download_dir: str) -> None:
     gr.Info("🚀 数据集下载中...", duration=1)
     subprocess.run(['bash', file_path], env=my_env)
 
-def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, model_id: str) -> None:
-    file_path = DATA_CONVERT_SH[model_id]
+def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, model_id: str, shared_mode: str, shared_pack: bool) -> None:
+    choice = f"{model_id}"
+    if shared_mode == "pretrain":
+        choice += "_pretrain"
+    else:
+        choice += "_stf"
+    if shared_pack:
+        choice += "_pack"
+    file_path = DATA_CONVERT_SH[choice]
     my_env = os.environ.copy()
     my_env.update({
         "INPUT_FILE": load_dir,

@@ -5,7 +5,7 @@ import time
 import threading
 from typing import Optional
 from ..extras.error import validate_value
-from ..extras.constants import status_map, PRETRAIN_SH
+from ..extras.constants import status_map, PRETRAIN_SH, SFT_LORA_SH, SFT_SH
 from typing import Any
 import subprocess
 import os
@@ -18,7 +18,8 @@ train_thread :Optional[threading.Thread] = None
 stop_training = threading.Event()
 training_completed = threading.Event()
 training_stopped = threading.Event()
-def get_train_config(model_id: str,
+def get_train_config(shared_pack: bool,
+                     model_id: str,
                      mode: str,
                      npus: int,
                      master_addr: str,
@@ -38,6 +39,7 @@ def get_train_config(model_id: str,
                      train_iters: int,
                      lr:float) -> list[gr.Tabs, gr.HTML]:
     config = {}
+    config['pack'] = shared_pack
     config['model_id'] = model_id
     config['mode'] = mode
     config['NPUS_PER_NODE'] = npus
@@ -93,10 +95,49 @@ def get_train_config(model_id: str,
 def train(config: dict[str: Any], first_update_eve: threading.Event) -> None:
     global stop_training, training_completed, training_stopped, trainer_log
     my_env = os.environ.copy()
+    choice = config['model_id']
+    if config['pack']:
+        choice += "_pack"
     if config['mode'] == "pretrain":
-        file_path = PRETRAIN_SH[config['model_id']]
+        file_path = PRETRAIN_SH[choice]
         for k,v in config.items():
-            if not k in ['mode', 'model_id']:
+            if not k in ['mode', 'model_id', 'pack']:
+                my_env[k] = str(v)
+        process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
+        while process.poll() is None:
+            if stop_training.is_set():
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    process.wait()
+                stop_training.clear()
+                training_stopped.set()
+                return
+            time.sleep(0.1)
+    elif config['mode'] == "SFT(LoRA)":
+        file_path = SFT_LORA_SH[choice]
+        for k,v in config.items():
+            if not k in ['mode', 'model_id', 'pack']:
+                my_env[k] = str(v)
+        process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
+        while process.poll() is None:
+            if stop_training.is_set():
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    process.wait()
+                stop_training.clear()
+                training_stopped.set()
+                return
+            time.sleep(0.1)
+    else:
+        file_path = SFT_SH[choice]
+        for k,v in config.items():
+            if not k in ['mode', 'model_id', 'pack']:
                 my_env[k] = str(v)
         process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
         while process.poll() is None:
