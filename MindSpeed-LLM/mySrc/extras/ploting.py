@@ -19,17 +19,12 @@ from typing import Any
 
 from transformers.trainer import TRAINER_STATE_NAME
 
-from . import logging
 from .packages import is_matplotlib_available
 
 
 if is_matplotlib_available():
     import matplotlib.figure
     import matplotlib.pyplot as plt
-
-
-logger = logging.get_logger(__name__)
-
 
 def smooth(scalars: list[float]) -> list[float]:
     r"""EMA implementation according to TensorBoard."""
@@ -80,7 +75,6 @@ def plot_loss(save_dictionary: str, keys: list[str] = ["loss"]) -> None:
                 metrics.append(data["log_history"][i][key])
 
         if len(metrics) == 0:
-            logger.warning_rank0(f"No metric {key} to plot.")
             continue
 
         plt.figure()

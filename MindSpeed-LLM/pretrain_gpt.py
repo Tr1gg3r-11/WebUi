@@ -225,12 +225,14 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     # in core/pipeline_parallel/schedule.py::deallocate_output_tensor, calling .clone()
     # on loss[0] fixes this
     local_num_tokens = loss[1].clone().detach().to(torch.int)
+    ##
     log = {'loss' : reporting_loss[0].cpu() / reporting_loss[1].cpu()}
     global current_steps, trainer_log
     current_steps += 1
     log['current_steps'] = current_steps
     trainer_log.append(log)
     save_log_to_file()
+    ##
     return (
         loss[0].clone(),
         local_num_tokens,
