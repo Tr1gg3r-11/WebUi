@@ -77,7 +77,6 @@ def get_train_config(shared_pack: bool,
             return [gr.Tabs(selected=2), gr.skip()]
 
 
-    first_update_eve = threading.Event()
     global train_thread
     if stop_training.is_set():
         gr.Info("🚀 训练任务中止中，请等待...", duration=0)
@@ -86,13 +85,12 @@ def get_train_config(shared_pack: bool,
         gr.Info("🚀 训练任务执行中，请先中止当前任务", duration=0)
         return [gr.Tabs(selected=2), gr.skip()]
     gr.Info("🚀 正在启动训练任务，即将跳转到监控页面...", duration=1)
-    train_thread = threading.Thread(target=train, args=(config, first_update_eve))
+    train_thread = threading.Thread(target=train, args=(config))
     train_thread.daemon = True
     train_thread.start()
-    first_update_eve.wait(timeout=1)
 
     return [gr.Tabs(selected=3), gr.update(value=status_map['training'])]
-def train(config: dict[str: Any], first_update_eve: threading.Event) -> None:
+def train(config: dict[str: Any]) -> None:
     global stop_training, training_completed, training_stopped, trainer_log
     my_env = os.environ.copy()
     choice = config['model_id']
