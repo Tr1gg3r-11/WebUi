@@ -24,23 +24,13 @@ def create_ui() -> gr.Blocks:
                     value=status_map['idle'],
                     visible=True
                 )
-        shared_mode = gr.Dropdown(
-            choices=["pretrain", "SFT(全参)", "SFT(LoRA)"],
-            value="pretrain",
-            interactive=True
-        )
-        shared_pack = gr.Checkbox(
-            label="多样本pack",
-            value=False,
-            interactive=True
-        )
         with gr.Tabs() as tabs:
             with gr.TabItem("模型权重下载与格式转换", id=0):
                 build_weights_tab()
             with gr.TabItem("数据集下载与格式转换", id=1):
-                build_datasets_tab(shared_mode, shared_pack)
+                build_datasets_tab()
             with gr.TabItem("训练任务配置", id=2):
-                build_train_config_tab(tabs, status_indicator, shared_mode, shared_pack)
+                build_train_config_tab(tabs, status_indicator)
             with gr.TabItem("训练过程数据展示与格式转换", id=3):
                 build_monitor_tab(status_indicator)
         timer = gr.Timer(value=2)

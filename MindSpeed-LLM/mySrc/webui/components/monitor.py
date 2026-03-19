@@ -8,7 +8,6 @@ from ...extras.ploting import gen_loss_plot
 import time
 import pickle
 from pathlib import Path
-import fcntl
 import os
 LOG_FILE = Path("./training_logs/trainer_log.jsonl")
 trainer_log = []
@@ -55,12 +54,14 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
         with gr.Row():
             with gr.Column():
                 gap = gr.Number(label="刷新间隔 (秒)", value=5, precision=0, interactive=True)
-                auto_refresh_cb = gr.Checkbox(label="自动刷新", value=True, interactive=True)
+                auto_refresh_cb = gr.Checkbox(label="自动刷新", value=False, interactive=True)
             with gr.Column():
                 manual_refresh = gr.Button("手动刷新")
         with gr.Row():
             loss_plot = gr.Plot(label="损失曲线")
         def refresh() -> gr.Plot:
+            if status_indicator != 'training':
+                return gr.skip()
             load_log_from_file()
             return gen_loss_plot(trainer_log)
         manual_refresh.click(
@@ -68,6 +69,8 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
             outputs=loss_plot
         )
         def auto_refresh(auto_refresh_cb: gr.Checkbox, gap: gr.Number, last_refresh: gr.State) -> list[gr.Plot, gr.State]:
+            if status_indicator != 'training':
+                return [gr.skip(), last_refresh]
             if not auto_refresh_cb:
                 return [gr.skip(), last_refresh]
             current_time = time.time()

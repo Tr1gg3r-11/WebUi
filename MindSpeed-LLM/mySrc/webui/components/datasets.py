@@ -4,8 +4,7 @@ if is_gradio_available():
 from ...handler.datasets import download, convert
 from ...extras.error import validate_value
 from ...extras.constants import SUPPORTED_MODEL
-
-def build_datasets_tab(shared_mode: gr.Dropdown, shared_pack: gr.Checkbox) -> None:
+def build_datasets_tab() -> None:
     with gr.Column():
         gr.Markdown("### 数据集下载")
         with gr.Row():
@@ -35,8 +34,17 @@ def build_datasets_tab(shared_mode: gr.Dropdown, shared_pack: gr.Checkbox) -> No
         )
         gr.Markdown("### 数据集格式转换")
         with gr.Row():
-            shared_mode.render()
-            shared_pack.render()
+            mode = gr.Dropdown(
+                choices=["pretrain", "SFT(全参)", "SFT(LoRA)"],
+                label="训练模式",
+                value="pretrain",
+                interactive=True
+            )
+            pack = gr.Checkbox(
+                label="多样本pack",
+                value=False,
+                interactive=True
+            )
             load_dir = gr.Textbox(
                 label="原始路径",
                 placeholder="请输入目标文件或文件夹路径",
@@ -92,6 +100,6 @@ def build_datasets_tab(shared_mode: gr.Dropdown, shared_pack: gr.Checkbox) -> No
         convert_btn = gr.Button("转换")
         convert_btn.click(
             fn=convert,
-            inputs=[load_dir, save_dir, tokenizer_path, workers, model_id, shared_mode, shared_pack],
+            inputs=[load_dir, save_dir, tokenizer_path, workers, model_id, mode, pack],
             outputs=[]
         )
