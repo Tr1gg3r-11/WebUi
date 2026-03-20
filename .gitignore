@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 /MindSpeed-LLM/datasets/
 /MindSpeed-LLM/training_logs/
+Megatron-LM/
+MindSpeed/
