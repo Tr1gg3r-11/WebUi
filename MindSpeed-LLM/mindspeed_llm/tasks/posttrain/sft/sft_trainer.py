@@ -25,6 +25,26 @@ from mindspeed.core.context_parallel.utils import pad_data
 
 IGNORE_INDEX = -100
 
+##
+import fcntl
+import pickle
+from pathlib import Path
+trainer_log = []
+current_steps = 0
+LOG_FILE = Path("./training_logs/trainer_log.jsonl")
+def save_log_to_file():
+    global trainer_log
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    
+    temp_file = LOG_FILE.with_suffix('.tmp')
+    with open(temp_file, 'wb') as f:
+        pickle.dump(trainer_log, f)
+        f.flush()
+        os.fsync(f.fileno())
+    
+    temp_file.replace(LOG_FILE)
+##
+
 
 class SFTTrainer(BaseTrainer):
     def __init__(self):
@@ -171,18 +191,33 @@ class SFTTrainer(BaseTrainer):
             if loss_sum.isnan():
                 raise ValueError(f'Rank {global_rank}: found NaN in local forward loss calculation. '
                                  f'Device: {torch.cuda.current_device()}, node: {os.uname()[1]}')
-
+        ##
+        global current_steps, trainer_log
+        ##
         if args.calculate_per_token_loss:
             total_loss_sum = loss_sum.clone().detach()
             total_loss_mask_sum = loss_mask_sum.clone().detach()
             torch.distributed.all_reduce(total_loss_sum, group=parallel_state.get_data_parallel_group())
             torch.distributed.all_reduce(total_loss_mask_sum, group=parallel_state.get_data_parallel_group())
-
+            ##
+            log = {'loss' : total_loss_sum[0].cpu() / total_loss_mask_sum[1].cpu()}
+            current_steps += 1
+            log['current_steps'] = current_steps
+            trainer_log.append(log)
+            save_log_to_file()
+            ##
             return loss_sum, loss_mask_sum.to(torch.int32), {'lm loss': [total_loss_sum, total_loss_mask_sum]}
         else:
             loss = loss_sum / loss_mask_sum
             # Reduce loss for logging.
             averaged_loss = average_losses_across_data_parallel_group([loss])
+            ##
+            log = {'loss' : averaged_loss.cpu()}
+            current_steps += 1
+            log['current_steps'] = current_steps
+            trainer_log.append(log)
+            save_log_to_file()
+            ##
             return loss, {'lm loss': averaged_loss[0]}
 
     def forward_step(self, data_iterator, model):

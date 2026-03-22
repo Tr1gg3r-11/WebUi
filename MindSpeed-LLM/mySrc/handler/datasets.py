@@ -18,7 +18,7 @@ def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, mod
     if shared_mode == "pretrain":
         choice += "_pretrain"
     else:
-        choice += "_stf"
+        choice += "_sft"
     if shared_pack:
         choice += "_pack"
     file_path = DATA_CONVERT_SH[choice]

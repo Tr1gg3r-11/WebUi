@@ -6,15 +6,8 @@ from ...handler.train import get_train_config
 def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
     with gr.Column():
         gr.Markdown("### 训练任务配置")
+        md = gr.Markdown("> 💡 提示:训练模式和多样本pack应与**数据集格式转换**时设置保持一致")
         with gr.Row():
-            model_id = gr.Dropdown(
-                choices=SUPPORTED_MODEL,
-                label="模型选择",
-                value=SUPPORTED_MODEL[0],
-                interactive=True
-            )
-            npus = gr.Number(label="每节点npu卡数", value=8, precision=0, interactive=True)
-            md = gr.Markdown("> 💡 提示:此处设置应与**数据集格式转换**时设置保持一致")
             mode = gr.Dropdown(
                 choices=["pretrain", "SFT(全参)", "SFT(LoRA)"],
                 label="训练模式",
@@ -22,10 +15,17 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
                 interactive=True
             )
             pack = gr.Checkbox(
-                label="多样本pack",
+                label="多样本pack(多个样本拼接打包成一个长序列)",
                 value=False,
                 interactive=True
             )
+            model_id = gr.Dropdown(
+                choices=SUPPORTED_MODEL,
+                label="模型选择",
+                value=SUPPORTED_MODEL[0],
+                interactive=True
+            )
+            npus = gr.Number(label="每节点npu卡数", value=8, precision=0, interactive=True)
         with gr.Row():
             master_addr = gr.Textbox(
                 label="节点ip",

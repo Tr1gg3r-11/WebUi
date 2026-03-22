@@ -48,7 +48,7 @@ def merge_log():
     trainer_log = new_trainer_log
 
             
-def build_monitor_tab(status_indicator: gr.HTML) -> None:
+def build_monitor_tab() -> None:
     with gr.Column():
         gr.Markdown("### 训练过程数据展示")
         with gr.Row():
@@ -60,8 +60,6 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
         with gr.Row():
             loss_plot = gr.Plot(label="损失曲线")
         def refresh() -> gr.Plot:
-            if status_indicator != 'training':
-                return gr.skip()
             load_log_from_file()
             return gen_loss_plot(trainer_log)
         manual_refresh.click(
@@ -69,8 +67,6 @@ def build_monitor_tab(status_indicator: gr.HTML) -> None:
             outputs=loss_plot
         )
         def auto_refresh(auto_refresh_cb: gr.Checkbox, gap: gr.Number, last_refresh: gr.State) -> list[gr.Plot, gr.State]:
-            if status_indicator != 'training':
-                return [gr.skip(), last_refresh]
             if not auto_refresh_cb:
                 return [gr.skip(), last_refresh]
             current_time = time.time()

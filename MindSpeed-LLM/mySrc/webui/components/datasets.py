@@ -41,7 +41,7 @@ def build_datasets_tab() -> None:
                 interactive=True
             )
             pack = gr.Checkbox(
-                label="多样本pack",
+                label="多样本pack(多个样本拼接打包成一个长序列)",
                 value=False,
                 interactive=True
             )
@@ -81,7 +81,7 @@ def build_datasets_tab() -> None:
             tokenizer_path = gr.Textbox(
                 label="目标模型的tokenizer原数据文件夹",
                 placeholder="请输入目标模型转换前的文件夹路径",
-                value="./models_from_hf/qwen2.5-7b-hf/",
+                value="./models_from_hf/your_model/",
                 interactive=True
             )
             workers = gr.Number(

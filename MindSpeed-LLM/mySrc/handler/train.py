@@ -85,7 +85,7 @@ def get_train_config(shared_pack: bool,
         gr.Info("🚀 训练任务执行中，请先中止当前任务", duration=0)
         return [gr.Tabs(selected=2), gr.skip()]
     gr.Info("🚀 正在启动训练任务，即将跳转到监控页面...", duration=1)
-    train_thread = threading.Thread(target=train, args=(config))
+    train_thread = threading.Thread(target=train, args=(config,))
     train_thread.daemon = True
     train_thread.start()
 

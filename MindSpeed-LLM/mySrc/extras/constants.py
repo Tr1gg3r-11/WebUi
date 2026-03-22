@@ -27,7 +27,7 @@ MAXIMUM = {
 }
 LR = {
     'pretrain' : 1.25e-6,
-    'SFT(全参)' : 0.000,
+    'SFT(全参)' : 1e-6,
     'SFT(LoRA)' : 0.000,
 }
 

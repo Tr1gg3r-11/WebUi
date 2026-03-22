@@ -32,7 +32,7 @@ def create_ui() -> gr.Blocks:
             with gr.TabItem("训练任务配置", id=2):
                 build_train_config_tab(tabs, status_indicator)
             with gr.TabItem("训练过程数据展示与格式转换", id=3):
-                build_monitor_tab(status_indicator)
+                build_monitor_tab()
         timer = gr.Timer(value=2)
         timer.tick(
             fn=train_monitor,

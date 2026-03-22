@@ -1,5 +1,8 @@
 from ..extras.constants import MODEL_DOWNLOAD_SH, MODEL_CONVERT_HF2MCORE_SH, MODEL_CONVERT_MCORE2HF_SH, MODEL_CONVERT_MCORE2HF_LORA_SH
 from ..extras.error import validate_value
+from ..extras.packages import is_gradio_available
+if is_gradio_available():
+    import gradio as gr
 import subprocess
 import os
 def download(platform: str, model_id: str, cache_dir: str) -> None:

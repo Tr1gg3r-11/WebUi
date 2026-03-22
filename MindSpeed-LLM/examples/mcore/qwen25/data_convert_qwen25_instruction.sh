@@ -1,6 +1,6 @@
 # 请按照您的真实环境修改 set_env.sh 路径
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
-mkdir ./finetune_dataset
+mkdir -p ${OUTPUT_PREFIX}
 
 python ./preprocess_data.py \
     --input ${INPUT_FILE} \
