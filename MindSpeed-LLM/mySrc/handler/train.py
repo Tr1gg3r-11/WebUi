@@ -37,7 +37,10 @@ def get_train_config(shared_pack: bool,
                      mbs: int,
                      gbs: int,
                      train_iters: int,
-                     lr:float) -> list[gr.Tabs, gr.HTML]:
+                     lr: float,
+                     lora_r: int,
+                     lora_alpha: int,
+                     lora_fusion: bool) -> list[gr.Tabs, gr.HTML]:
     config = {}
     config['pack'] = shared_pack
     config['model_id'] = model_id
@@ -66,10 +69,13 @@ def get_train_config(shared_pack: bool,
     config['LR'] = lr
     # for k,v in config.items():
     #     print(k,v)
+    config['LORA_R'] = lora_r
+    config['LORA_ALPHA'] = lora_alpha
+    config['LORA_FUSION'] = lora_fusion
 
     #check value
-    keys = ['TP', 'PP', 'CP', '每节点npu卡数', '端口号', '节点数量', 'seq_length', 'micro-batch-size', 'global-batch-size', 'train_iters', '学习率']
-    values = [tp, pp ,cp ,npus, master_port, nodes, seq_len, mbs, gbs, train_iters, lr]
+    keys = ['TP', 'PP', 'CP', '每节点npu卡数', '端口号', '节点数量', 'seq_length', 'micro-batch-size', 'global-batch-size', 'train_iters', '学习率', 'lora_r', 'lora_alpha']
+    values = [tp, pp ,cp ,npus, master_port, nodes, seq_len, mbs, gbs, train_iters, lr, lora_r, lora_alpha]
     check = True
     for k,v in zip(keys,values):
         check = check and validate_value(v,k)
@@ -102,54 +108,18 @@ def train(config: dict[str: Any]) -> None:
             if not k in ['mode', 'model_id', 'pack']:
                 my_env[k] = str(v)
         process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
-        while process.poll() is None:
-            if stop_training.is_set():
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                try:
-                    process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                    process.wait()
-                stop_training.clear()
-                training_stopped.set()
-                return
-            time.sleep(0.1)
     elif config['mode'] == "SFT(LoRA)":
         file_path = SFT_LORA_SH[choice]
         for k,v in config.items():
             if not k in ['mode', 'model_id', 'pack']:
                 my_env[k] = str(v)
         process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
-        while process.poll() is None:
-            if stop_training.is_set():
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                try:
-                    process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                    process.wait()
-                stop_training.clear()
-                training_stopped.set()
-                return
-            time.sleep(0.1)
     else:
         file_path = SFT_SH[choice]
         for k,v in config.items():
             if not k in ['mode', 'model_id', 'pack']:
                 my_env[k] = str(v)
         process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
-        while process.poll() is None:
-            if stop_training.is_set():
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                try:
-                    process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                    process.wait()
-                stop_training.clear()
-                training_stopped.set()
-                return
-            time.sleep(0.1)
     if LOG_FILE.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         new_name = LOG_FILE.parent / f"{config['model_id']}_{config['mode']}_{timestamp}.jsonl"

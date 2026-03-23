@@ -13,13 +13,20 @@ def download(name: str, source: str, download_dir: str) -> None:
     gr.Info("🚀 数据集下载中...", duration=1)
     subprocess.run(['bash', file_path], env=my_env)
 
-def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, model_id: str, shared_mode: str, shared_pack: bool) -> None:
+def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, model_id: str, mode: str, pack: bool, seq_length: int) -> None:
+    check = True
+    keys = ['多线程处理数', 'seq_length']
+    values = [workers, seq_length]
+    for k,v in zip(keys,values):
+        check = check and validate_value(v,k)
+        if not check:
+            return
     choice = f"{model_id}"
-    if shared_mode == "pretrain":
+    if mode == "pretrain":
         choice += "_pretrain"
     else:
         choice += "_sft"
-    if shared_pack:
+    if pack:
         choice += "_pack"
     file_path = DATA_CONVERT_SH[choice]
     my_env = os.environ.copy()
@@ -28,6 +35,7 @@ def convert(load_dir: str, save_dir: str, tokenizer_path: str, workers: int, mod
         "TOKENIZER_PATH": tokenizer_path,
         "OUTPUT_PREFIX": save_dir,
         "WORKERS": str(workers),
+        "SEQ_LENGTH": str(seq_length)
     })
     gr.Info("🚀 数据集格式转换中...", duration=1)
     subprocess.run(['bash', file_path], env=my_env)

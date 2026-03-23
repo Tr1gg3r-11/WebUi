@@ -1,24 +1,24 @@
 #!/bin/bash
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-NPUS_PER_NODE=8
-MASTER_ADDR=localhost
-MASTER_PORT=6000
-NNODES=1
-NODE_RANK=0
+NPUS_PER_NODE=${NPUS_PER_NODE}
+MASTER_ADDR=${MASTER_ADDR}
+MASTER_PORT=${MASTER_PORT}
+NNODES=${NNODES}
+NODE_RANK=${NODE_RANK}
 WORLD_SIZE=$(($NPUS_PER_NODE*$NNODES))
 
 # please fill these path configurations
-CKPT_SAVE_DIR="your model save ckpt path"
-DATA_PATH="your data path"
-TOKENIZER_PATH="your tokenizer path"
-CKPT_LOAD_DIR="your model ckpt path"
+CKPT_LOAD_DIR=${LOAD_DIR}
+CKPT_SAVE_DIR=${SAVE_DIR}
+DATA_PATH=${DATA_PATH}
+TOKENIZER_PATH=${TOKENIZER_PATH}
 
-TP=1
-PP=1
-MBS=1
-GBS=8
-SEQ_LEN=4096
+TP=${TP}
+PP=${PP}
+MBS=${MBS}
+GBS=${GBS}
+SEQ_LEN=${SEQ_LEN}
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $NPUS_PER_NODE \
@@ -65,8 +65,8 @@ GPT_ARGS="
     --hidden-dropout 0.0 \
     --make-vocab-size-divisible-by 1 \
     --padded-vocab-size 151936 \
-    --lr 7.75e-7 \
-    --train-iters 2000 \
+    --lr ${LR} \
+    --train-iters ${TRAIN_ITERS} \
     --lr-decay-style cosine \
     --lr-warmup-fraction 0.01 \
     --init-method-std 0.01 \

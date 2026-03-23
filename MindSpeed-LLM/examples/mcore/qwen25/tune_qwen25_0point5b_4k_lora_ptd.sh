@@ -1,24 +1,24 @@
 #!/bin/bash
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-NPUS_PER_NODE=8
-MASTER_ADDR=localhost
-MASTER_PORT=6011
-NNODES=1
-NODE_RANK=0
+NPUS_PER_NODE=${NPUS_PER_NODE}
+MASTER_ADDR=${MASTER_ADDR}
+MASTER_PORT=${MASTER_PORT}
+NNODES=${NNODES}
+NODE_RANK=${NODE_RANK}
 WORLD_SIZE=$(($NPUS_PER_NODE*$NNODES))
 
 # please fill these path configurations
-CKPT_SAVE_DIR="your model save ckpt path"
-DATA_PATH="your data path"
-TOKENIZER_PATH="your tokenizer path"
-CKPT_LOAD_DIR="your model ckpt path"
+CKPT_SAVE_DIR=${SAVE_DIR}
+DATA_PATH=${DATA_PATH}
+TOKENIZER_PATH=${TOKENIZER_PATH}
+CKPT_LOAD_DIR=${LOAD_DIR}
 
-TP=1
-PP=1
-MBS=1
-GBS=8
-SEQ_LEN=4096
+TP=${TP}
+PP=${PP}
+MBS=${MBS}
+GBS=${GBS}
+SEQ_LEN=${SEQ_LEN}
 CP_ALGO=megatron_cp_algo
 
 DISTRIBUTED_ARGS="
@@ -29,6 +29,7 @@ DISTRIBUTED_ARGS="
     --master_port $MASTER_PORT
 "
 
+LORA_FUSION=${LORA_FUSION:-false}
 TUNE_ARGS="
     --finetune \
     --stage sft \
@@ -39,7 +40,7 @@ TUNE_ARGS="
     --padded-samples \
     --lora-r 8 \
     --lora-alpha 16 \
-    --lora-fusion \
+    $( [ "$LORA_FUSION" = "true" ] && echo "--lora-fusion" ) \
     --lora-target-modules linear_qkv linear_proj linear_fc1 linear_fc2
 "
 
@@ -70,8 +71,8 @@ GPT_ARGS="
     --hidden-dropout 0.0 \
     --make-vocab-size-divisible-by 1 \
     --padded-vocab-size 151936 \
-    --lr 7.75e-7 \
-    --train-iters 2000 \
+    --lr ${LR} \
+    --train-iters ${TRAIN_ITERS} \
     --lr-decay-style cosine \
     --lr-warmup-fraction 0.01 \
     --init-method-std 0.01 \
@@ -109,7 +110,7 @@ OUTPUT_ARGS="
     --eval-iters 0 \
 "
 
-torchrun $DISTRIBUTED_ARGS postrain_gpt.py \
+torchrun $DISTRIBUTED_ARGS posttrain_gpt.py \
     $GPT_ARGS \
     $DATA_ARGS \
     $OUTPUT_ARGS \

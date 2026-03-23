@@ -2,8 +2,7 @@ from ...extras.packages import is_gradio_available
 if is_gradio_available():
     import gradio as gr
 from ...handler.datasets import download, convert
-from ...extras.error import validate_value
-from ...extras.constants import SUPPORTED_MODEL
+from ...extras.constants import SUPPORTED_MODEL, DATASET_SEQ
 def build_datasets_tab() -> None:
     with gr.Column():
         gr.Markdown("### 数据集下载")
@@ -90,6 +89,24 @@ def build_datasets_tab() -> None:
                 value=4,
                 interactive=True
             )
+            seq_length = gr.Number(
+                label="seq_length",
+                precision=0,
+                value=4096,
+                interactive=True,
+                visible = False
+            )
+        def seq_length_update(model_id, mode, pack):
+            target = f"{model_id}_{mode}"
+            if pack:
+                target += "_pack"
+            return gr.update(visible = target in DATASET_SEQ)
+        gr.on(
+            triggers = [model_id.change, mode.change, pack.change],
+            fn = seq_length_update,
+            inputs = [model_id, mode, pack],
+            outputs = seq_length
+        )
         def tokenizer_path_change(model_id: gr.Dropdown):
             return gr.update(value=f"./models_from_hf/{model_id}-hf/")
         model_id.change(
@@ -100,6 +117,6 @@ def build_datasets_tab() -> None:
         convert_btn = gr.Button("转换")
         convert_btn.click(
             fn=convert,
-            inputs=[load_dir, save_dir, tokenizer_path, workers, model_id, mode, pack],
+            inputs=[load_dir, save_dir, tokenizer_path, workers, model_id, mode, pack, seq_length],
             outputs=[]
         )

@@ -1,7 +1,7 @@
 from ...extras.packages import is_gradio_available
 if is_gradio_available():
     import gradio as gr
-from ...extras.constants import SUPPORTED_MODEL, LR
+from ...extras.constants import SUPPORTED_MODEL, LR, MIN_LR
 from ...handler.train import get_train_config
 def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
     with gr.Column():
@@ -74,7 +74,7 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
             tp = gr.Number(label="tensor-parallel-size", value=1, precision=0, interactive=True)
             pp = gr.Number(label="pipeline-parallel-size", value=4, precision=0, interactive=True)
             cp = gr.Number(label="context-parallel-size", value=1, precision=0, interactive=True)
-            seq_len = gr.Number(label="seq_length", value=4096, precision=0, interactive=True)
+            seq_len = gr.Number(label="seq_length(若数据转换时设置过, 应不小于设置值)", value=4096, precision=0, interactive=True)
             mbs = gr.Number(label="micro-batch-size", info="微批次大小,决定每次前向/反向传播处理的样本数量。较大的值可以提高GPU利用率,但会增加内存使用", value=1, precision=0, interactive=True)
             gbs = gr.Number(label="global-batch-size", info="全局批次大小,是一次迭代更新的总样本数", value=64, precision=0, interactive=True)
         # def update_parallel_visibility(model_id: str) -> list[gr.Number, gr.Number, gr.Number, gr.Markdown]:
@@ -93,15 +93,39 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
         #     inputs=[model_id],
         #     outputs=[tp, pp, cp, md]
         # )
+        with gr.Row(visible=False) as row1:
+            with gr.Column():
+                md1 = gr.Markdown("> 表示低秩矩阵的维度。较低的 rank 值模型在训练时会使用更少的参数更新")
+                lora_r = gr.Number(label="lora_r", value=8, precision=0, interactive=True)
+            with gr.Column():
+                md2 = gr.Markdown("> 控制 LoRA 权重对原始权重的影响比例, 数值越高则影响越大。一般保持 alpha/r 为 2")
+                lora_alpha = gr.Number(label="lora_alpha", value=16, precision=0, interactive=True)
+            with gr.Column():
+                md3 = gr.Markdown("> 是否启用CCLoRA算法，该算法通过计算通信掩盖提高性能")
+                lora_fusion = gr.Checkbox(label="lora_fusion", interactive=True, value=True)
+        def row_visible(mode):
+            return gr.update(visible=(mode=="SFT(LoRA)"))
+        mode.change(fn=row_visible,inputs=mode,outputs=row1)
         with gr.Row():
             train_iters = gr.Number(label="train_iters", value=2000, precision=0, interactive=True)
-            lr = gr.Number(label="学习率", value=LR['pretrain'], interactive=True)
-        def lr_update(mode : gr.Dropdown):
-            return gr.update(value=LR[mode])
-        mode.change(fn=lr_update, inputs=mode, outputs=lr)
+            with gr.Column():
+                lr = gr.Number(label="学习率", interactive=True)
+        def lr_update(model_id: gr.Dropdown, mode : gr.Dropdown, pack: gr.Checkbox):
+            target = f"{model_id}_{mode}"
+            if pack and mode == "SFT(全参)":
+                target += "_pack"
+            if target in MIN_LR:
+                return gr.update(value=LR[target], label=f"学习率(不得小于{MIN_LR[target]})")
+            return gr.update(value=LR[target])
+        gr.on(
+            triggers=[mode.change, model_id.change, pack.change],
+            fn=lr_update,
+            inputs=[model_id, mode, pack],
+            outputs=lr
+        )
         train_btn = gr.Button("开始训练")
         train_btn.click(
             fn=get_train_config,
-            inputs=[pack, model_id, mode, npus, master_addr, master_port, nodes, node_rank, load_dir, save_dir, data_path, tokenizer_path, tp, pp , cp, seq_len, mbs, gbs, train_iters, lr],
+            inputs=[pack, model_id, mode, npus, master_addr, master_port, nodes, node_rank, load_dir, save_dir, data_path, tokenizer_path, tp, pp , cp, seq_len, mbs, gbs, train_iters, lr, lora_r, lora_alpha, lora_fusion],
             outputs=[tabs, status_indicator]
         )

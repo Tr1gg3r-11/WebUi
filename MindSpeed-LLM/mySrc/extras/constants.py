@@ -21,14 +21,22 @@ MINIMUM = {
     'micro-batch-size': 1,
     'global-batch-size': 1,
     'train_iters' : 1,
-    '学习率' : 0
+    '学习率' : 0,
+    'lora_r' : 1,
+    'lora_alpha' : 1
 }
 MAXIMUM = {
 }
 LR = {
-    'pretrain' : 1.25e-6,
-    'SFT(全参)' : 1e-6,
-    'SFT(LoRA)' : 0.000,
+    'Qwen2.5-0.5B_pretrain' : 1.25e-6,
+    'Qwen2.5-0.5B_SFT(全参)' : 1e-6,
+    'Qwen2.5-0.5B_SFT(LoRA)' : 7.75e-7,
+    'Qwen2.5-0.5B_SFT(全参)_pack' : 7.75e-7
+}
+MIN_LR = {
+    'Qwen2.5-0.5B_pretrain' : 1.25e-7,
+    'Qwen2.5-0.5B_SFT(LoRA)' : 7.75e-8,
+    'Qwen2.5-0.5B_SFT(全参)_pack' : 7.75e-8
 }
 
 status_map = {
@@ -38,6 +46,10 @@ status_map = {
     "completed": '<div style="padding: 10px; border-radius: 5px; background-color: #d1ecf1; color: #0c5460;">🔵 训练完成</div>',
     "stopped": '<div style="padding: 10px; border-radius: 5px; background-color: #f8d7da; color: #721c24;">🔴 训练已停止</div>'
 }
+
+DATASET_SEQ=[
+    "Qwen2.5-0.5B_SFT(全参)_pack"
+]
 
 DATASETS_SH={
     "alpaca-HuggingFace":"mySrc/scripts/datasets/alpaca-HuggingFace.sh",
