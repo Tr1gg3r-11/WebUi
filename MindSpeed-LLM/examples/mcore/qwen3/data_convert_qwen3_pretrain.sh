@@ -1,13 +1,13 @@
 # 修改 ascend-toolkit 路径
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
-mkdir ./dataset
+mkdir -p ${OUTPUT_PREFIX}
 
 python ./preprocess_data.py \
-    --input ./dataset/train-00000-of-00042-d964455e17e96d5a.parquet \
-    --tokenizer-name-or-path ./model_from_hf/qwen3_hf/ \
+    --input ${INPUT_FILE} \
+    --tokenizer-name-or-path ${TOKENIZER_PATH} \
     --tokenizer-type PretrainedFromHF \
     --handler-name GeneralPretrainHandler \
-    --output-prefix ./dataset/enwiki \
+    --output-prefix ${OUTPUT_PREFIX} \
     --json-keys text \
-    --workers 4 \
+    --workers ${WORKERS} \
     --log-interval 1000

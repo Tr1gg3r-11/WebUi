@@ -7,13 +7,13 @@ python convert_ckpt.py \
     --model-type GPT \
     --load-model-type mg \
     --save-model-type hf \
-    --target-tensor-parallel-size 1 \
-    --target-pipeline-parallel-size 1 \
+    --target-tensor-parallel-size ${TP} \
+    --target-pipeline-parallel-size ${PP} \
     --spec mindspeed_llm.tasks.models.spec.qwen3_spec layer_spec \
-    --lora-r 8 \
-    --lora-alpha 16 \
+    --lora-r ${LORA_R} \
+    --lora-alpha ${LORA_ALPHA} \
     --lora-target-modules linear_qkv linear_proj linear_fc1 linear_fc2 \
-    --load-dir ./model_weights/qwen3_mcore/ \
-    --lora-load ./ckpt/qwen3_lora \
-    --save-dir ./model_from_hf/qwen3_hf/ \
+    --load-dir ${LOAD_DIR} \
+    --lora-load ${LORA_LOAD} \
+    --save-dir ${SAVE_DIR} \
     --model-type-hf qwen3 \

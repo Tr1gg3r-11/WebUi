@@ -108,18 +108,24 @@ def train(config: dict[str: Any]) -> None:
             if not k in ['mode', 'model_id', 'pack']:
                 my_env[k] = str(v)
         process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
+        while process.poll() is None:
+            time.sleep(0.1)
     elif config['mode'] == "SFT(LoRA)":
         file_path = SFT_LORA_SH[choice]
         for k,v in config.items():
             if not k in ['mode', 'model_id', 'pack']:
                 my_env[k] = str(v)
         process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
+        while process.poll() is None:
+            time.sleep(0.1)
     else:
         file_path = SFT_SH[choice]
         for k,v in config.items():
             if not k in ['mode', 'model_id', 'pack']:
                 my_env[k] = str(v)
         process = subprocess.Popen(['bash', file_path], env=my_env, preexec_fn=os.setsid)
+        while process.poll() is None:
+            time.sleep(0.1)
     if LOG_FILE.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         new_name = LOG_FILE.parent / f"{config['model_id']}_{config['mode']}_{timestamp}.jsonl"

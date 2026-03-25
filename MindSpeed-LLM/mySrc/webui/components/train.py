@@ -109,7 +109,7 @@ def build_train_config_tab(tabs: gr.Tabs, status_indicator: gr.HTML) -> None:
         with gr.Row():
             train_iters = gr.Number(label="train_iters", value=2000, precision=0, interactive=True)
             with gr.Column():
-                lr = gr.Number(label="学习率", interactive=True)
+                lr = gr.Number(label="学习率", value=1.25e-6, interactive=True)
         def lr_update(model_id: gr.Dropdown, mode : gr.Dropdown, pack: gr.Checkbox):
             target = f"{model_id}_{mode}"
             if pack and mode == "SFT(全参)":

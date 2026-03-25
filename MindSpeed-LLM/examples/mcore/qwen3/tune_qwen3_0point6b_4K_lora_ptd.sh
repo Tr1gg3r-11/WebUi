@@ -2,25 +2,24 @@
 
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 # Change for multinode config
-NPUS_PER_NODE=8
-MASTER_ADDR=localhost
-MASTER_PORT=6015
-NNODES=1
-NODE_RANK=0
+NPUS_PER_NODE=${NPUS_PER_NODE}
+MASTER_ADDR=${MASTER_ADDR}
+MASTER_PORT=${MASTER_PORT}
+NNODES=${NNODES}
+NODE_RANK=${NODE_RANK}
 WORLD_SIZE=$(($NPUS_PER_NODE*$NNODES))
 
 # please fill these path configurations
-CKPT_LOAD_DIR="your model ckpt path"
-CKPT_SAVE_DIR="your model save ckpt path"
-DATA_PATH="your data path"
-TOKENIZER_PATH="your tokenizer path"
+CKPT_LOAD_DIR=${LOAD_DIR}
+CKPT_SAVE_DIR=${SAVE_DIR}
+DATA_PATH=${DATA_PATH}
+TOKENIZER_PATH=${TOKENIZER_PATH}
 
-TP=1
-PP=1
-MBS=1
-GBS=16
-SEQ_LENGTH=8192
-TRAIN_ITERS=2000
+TP=${TP}
+PP=${PP}
+MBS=${MBS}
+GBS=${GBS}
+SEQ_LENGTH=${SEQ_LEN}
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $NPUS_PER_NODE \
@@ -77,7 +76,7 @@ GPT_ARGS="
     --adam-beta2 0.95 \
     --no-load-optim \
     --no-load-rng \
-    --lr 1.25e-5 \
+    --lr ${LR} \
 "
 
 DATA_ARGS="
@@ -100,9 +99,9 @@ TUNE_ARGS="
     --tokenizer-not-use-fast \
     --prompt-type qwen3 \
     --no-pad-to-seq-lengths \
-    --lora-r 16 \
-    --lora-alpha 32 \
-    --lora-fusion \
+    --lora-r ${LORA_R} \
+    --lora-alpha ${LORA_ALPHA} \
+    $( [ "$LORA_FUSION" = "True" ] && echo "--lora-fusion" ) \
     --lora-target-modules linear_qkv linear_proj linear_fc1 linear_fc2
 "
 

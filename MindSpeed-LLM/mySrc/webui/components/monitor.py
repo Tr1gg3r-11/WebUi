@@ -110,27 +110,57 @@ def build_monitor_tab() -> None:
                 value=f"./models_mcore_weights/your_model/",
                 interactive=True
             )
-            save_dir = gr.Textbox(
-                label="保存目录",
+            ori_dir = gr.Textbox(
+                label="模型原始config目录",
                 placeholder="请输入文件夹路径",
-                value=f"./models_trained_hf/your_model/",
+                value=f"./models_from_hf/your_model/",
+                interactive=True
+            )
+            save_dir = gr.Textbox(
+                label="模型保存目录",
+                placeholder="请输入文件夹路径",
+                value=f"./models_trained/your_model/",
                 interactive=True
             )
         def update_load_dir(model_id: str) -> gr.Textbox:
             return gr.update(value=f"./models_mcore_weights/{model_id}/")
         def update_save_dir(model_id: str) -> gr.Textbox:
-            return gr.update(value=f"./models_trained_hf/{model_id}/")
+            return gr.update(value=f"./models_trained/{model_id}/")
         model_id.change(
             fn=update_load_dir,
             inputs=model_id,
-            outputs=model_id
+            outputs=load_dir
         )
         model_id.change(
             fn=update_save_dir,
             inputs=model_id,
-            outputs=model_id
+            outputs=save_dir
         )
-        md = gr.Markdown("> 💡 提示:TPxPPxCP 不应超过**可用GPU总数**(不可配置时默认为1)")
+        with gr.Row():
+            lora = gr.Checkbox(label="lora", value=False, interactive=True)
+        with gr.Row(visible=False) as row_lora:
+            with gr.Column():
+                md1 = gr.Markdown("> 表示低秩矩阵的维度。较低的 rank 值模型在训练时会使用更少的参数更新")
+                lora_r = gr.Number(label="lora_r", value=8, precision=0, interactive=True)
+            with gr.Column():
+                md2 = gr.Markdown("> 控制 LoRA 权重对原始权重的影响比例, 数值越高则影响越大。一般保持 alpha/r 为 2")
+                lora_alpha = gr.Number(label="lora_alpha", value=16, precision=0, interactive=True)
+        def lora_config_update(lora: gr.Checkbox):
+            return gr.update(visible=lora)
+        lora.change(fn=lora_config_update,inputs=lora,outputs=row_lora)
+        def ori_or_lorackpt(lora: gr.Checkbox, model_id: gr.Dropdown):
+            if lora:
+                return gr.update(label="lora训练后的checkpoint目录", value=f"./tune_lora/ckpt/{model_id}/")
+            else:
+                return gr.update(label="模型原始config目录", value=f"./models_from_hf/{model_id}/")
+        gr.on(
+            triggers=[lora.change, model_id.change],
+            fn=ori_or_lorackpt,
+            inputs=[lora, model_id],
+            outputs=ori_dir
+        )
+        
+        md = gr.Markdown("> 💡 提示:此处应与最初下载时配置相同")
         with gr.Row():
             tp = gr.Number(
                 label="TP",
@@ -172,5 +202,5 @@ def build_monitor_tab() -> None:
         convert_btn = gr.Button("开始转换")
         convert_btn.click(
             fn=convert_mcore2hf,
-            inputs=[load_dir, save_dir, model_id, tp, cp, pp]
+            inputs=[lora, ori_dir, load_dir, save_dir, model_id, tp, cp, pp, lora_r, lora_alpha]
         )
