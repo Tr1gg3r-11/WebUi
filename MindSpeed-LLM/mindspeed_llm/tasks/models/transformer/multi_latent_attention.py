@@ -35,9 +35,10 @@ from mindspeed_llm.core.transformer.custom_layers.transformer_engine import PTNo
 from mindspeed_llm.tasks.models.transformer.dsa_indexer import get_dsa_indexer_spec, DSAIndexerLossAutoScaler, \
     compute_dsa_indexer_loss, get_attn_scores, DSAIndexerLossLoggingHelper, \
     fused_sparse_lightning_indexer_kl_loss, fused_sparse_lightning_indexer_kl_loss_kvallgather
-from mindspeed_llm.tasks.models.transformer.mla_dot_product_attention import MlaDotProductAttention
+from mindspeed_llm.tasks.models.transformer.mla_dot_product_attention import MlaDotProductAttention, MlaTEDotProductAttention
 from mindspeed_llm.tasks.models.transformer.mla_up_proj_overlap_tp_comm import mla_up_projection_overlap_tp_comm
-from mindspeed_llm.core.models.common.embeddings.rotary_pos_embedding import apply_rotary_pos_emb_bshd_in_complex
+from mindspeed_llm.core.models.common.embeddings.rotary_pos_embedding import apply_rotary_pos_emb_bshd_in_complex 
+from einops import rearrange
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +74,15 @@ def get_mla_self_attn_submodules(qk_layernorm, mla_mm_split, enable_dsa_indexer)
     if args.transformer_impl == "transformer_engine":
         ColumnLinear = TEColumnParallelLinear
         RowLinear = TERowParallelLinear
+        MlaCoreAttention = MlaTEDotProductAttention
     else:
         ColumnLinear = ColumnParallelLinear
         RowLinear = RowParallelLinear
+        MlaCoreAttention = MlaDotProductAttention
     if not mla_mm_split:
         return CustomMLASelfAttentionSubmodules(
             linear_qkv=LinearNoTP,
-            core_attention=MlaDotProductAttention,
+            core_attention=MlaCoreAttention,
             linear_proj=RowLinear,
             q_layernorm=PTNorm if qk_layernorm else IdentityOp,
             kv_layernorm=PTNorm if qk_layernorm else IdentityOp,
@@ -91,7 +94,7 @@ def get_mla_self_attn_submodules(qk_layernorm, mla_mm_split, enable_dsa_indexer)
     else:
         return MLASelfAttentionWithMMSplitSubmodules(
             linear_qkv=LinearNoTP,
-            core_attention=MlaDotProductAttention,
+            core_attention=MlaCoreAttention,
             linear_proj=RowLinear,
             q_layernorm=PTNorm if qk_layernorm else IdentityOp,
             kv_layernorm=PTNorm if qk_layernorm else IdentityOp,
@@ -407,12 +410,6 @@ class CustomMLASelfAttention(SelfAttention):
                 if rotary_pos_emb is not None:
                     rotary_q_pos_emb, rotary_k_pos_emb = rotary_pos_emb
 
-                    if not args.enable_dsa_indexer and hasattr(args, "rope_scaling_type") and args.rope_scaling_type in ("yarn", "plm"):
-                        s, b, n, d = q_pos_emb.shape
-                        q_pos_emb = q_pos_emb.view(s, b, n, d // 2, 2).transpose(4, 3).reshape(s, b, n, d)
-                        s, b, n, d = k_pos_emb.shape
-                        k_pos_emb = k_pos_emb.view(s, b, n, d // 2, 2).transpose(4, 3).reshape(s, b, n, d)
-
                     if packed_seq_params is not None:
                         cu_seqlens_q = packed_seq_params
                         cu_seqlens_kv = packed_seq_params
@@ -601,12 +598,6 @@ class CustomMLASelfAttention(SelfAttention):
 
             if rotary_pos_emb is not None:
                 rotary_q_pos_emb, rotary_k_pos_emb = rotary_pos_emb
-
-                if not args.enable_dsa_indexer and hasattr(args, "rope_scaling_type") and args.rope_scaling_type in ("yarn", "plm"):
-                    s, b, n, d = q_pos_emb.shape
-                    q_pos_emb = q_pos_emb.view(s, b, n, d // 2, 2).transpose(4, 3).reshape(s, b, n, d)
-                    s, b, n, d = k_pos_emb.shape
-                    k_pos_emb = k_pos_emb.view(s, b, n, d // 2, 2).transpose(4, 3).reshape(s, b, n, d)
 
                 if packed_seq_params is not None:
                     cu_seqlens_q = packed_seq_params.cu_seqlens_q if hasattr(packed_seq_params, 'cu_seqlens_q') else packed_seq_params

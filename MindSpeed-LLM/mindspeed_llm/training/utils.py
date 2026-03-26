@@ -172,7 +172,7 @@ def recompute_valid_actual_seq_len(actual_seq_len, micro_batch_size):
     if len(indices) < micro_batch_size:
         return actual_seq_len
     first_continuous = indices[micro_batch_size - 1].item()
-    return torch.cat([s[:first_continuous + 1], s[-1:]]).tolist()
+    return torch.cat([s[:first_continuous + 1], s[-1:]])
 
 
 def compute_actual_seq_len(origin_seq):
@@ -933,35 +933,59 @@ def is_distributed_ckpt_complete(
     """
     args = get_args()
 
+    def get_etp_valid_ckpts_list(tp: int, ep: int):
+        valid = []
+        if tp % ep == 0:
+            for tp_rank in range(tp):
+                ep_rank = tp_rank % ep
+                valid.append((tp_rank, ep_rank))
+        elif ep % tp == 0:
+            for ep_rank in range(ep):
+                tp_rank = ep_rank % tp
+                valid.append((tp_rank, ep_rank))
+        return valid
+
     def _check_ckpt() -> bool:
         tp = args.tensor_model_parallel_size
         pp = args.pipeline_model_parallel_size
         ep = args.expert_model_parallel_size
+        etp = args.expert_tensor_parallel_size
+        enable_etp = (etp == 1) and (tp != 1)
 
         iter_dir = os.path.join(save_path, f"iter_{iteration:07d}")
 
         if not os.path.isdir(iter_dir):
             return False
 
-        for tp_rank in range(tp):
+        if enable_etp and ep > 1:
+            tp_ep_pairs = get_etp_valid_ckpts_list(tp, ep)
+        else:
+            tp_ep_pairs = [
+                (tp_rank, ep_rank)
+                for tp_rank in range(tp)
+                for ep_rank in range(ep)
+            ]
+
+        for tp_rank, ep_rank in tp_ep_pairs:
             for pp_rank in range(pp):
-                for ep_rank in range(ep):
-                    if ep == 1 and pp == 1:
-                        rank_dir = f"mp_rank_{tp_rank:02d}"
-                    elif pp ==1 and ep != 1:
-                        rank_dir = f"mp_rank_{tp_rank:02d}_{ep_rank:03d}"
-                    elif ep ==1 and pp != 1:
-                        rank_dir = f"mp_rank_{tp_rank:02d}_{pp_rank:03d}"
-                    else:
-                        rank_dir = (
-                            f"mp_rank_{tp_rank:02d}_{pp_rank:03d}_{ep_rank:03d}"
-                        )
-                    weight_path = os.path.join(
-                        iter_dir, rank_dir, weight_filename
+                if ep == 1 and pp == 1:
+                    rank_dir = f"mp_rank_{tp_rank:02d}"
+                elif pp == 1 and ep != 1:
+                    rank_dir = f"mp_rank_{tp_rank:02d}_{ep_rank:03d}"
+                elif ep == 1 and pp != 1:
+                    rank_dir = f"mp_rank_{tp_rank:02d}_{pp_rank:03d}"
+                else:
+                    rank_dir = (
+                        f"mp_rank_{tp_rank:02d}_{pp_rank:03d}_{ep_rank:03d}"
                     )
 
-                    if not os.path.isfile(weight_path):
-                        return False
+
+                weight_path = os.path.join(
+                    iter_dir, rank_dir, weight_filename
+                )
+
+                if not os.path.isfile(weight_path):
+                    return False
 
         return True
 
@@ -1027,3 +1051,28 @@ def infer_model_type_from_hf_config(
         "Cannot infer model type from architectures of Huggingface config.json '{arch_row}'. "
         "Please specify --model-type-hf explicitly."
     )
+
+
+def auto_coverage(func):
+    """
+    Decide whether to collect coverage based on the START_COVERAGE environment variable.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Check the environment variable.
+        if os.environ.get('START_COVERAGE', '').lower() != 'true':
+            return func(*args, **kwargs)
+        
+        import coverage
+        cov = coverage.Coverage(data_suffix=f"usecase-{time.time_ns()}_{random.randint(0, 100)}")
+        # Collect coverage.
+        cov.start()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            # Stop coverage.
+            cov.stop()
+            # Save coverage data.
+            cov.save()
+    
+    return wrapper

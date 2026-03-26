@@ -8,7 +8,7 @@ import numpy
 import torch
 from torch import distributed as dist
 
-from mindspeed.fsdp.distributed.parallel_state import ParallelState
+from mindspeed_llm.fsdp2.distributed.parallel_state import ParallelState
 from mindspeed_llm.fsdp2.utils.logging import get_logger
 from mindspeed_llm.fsdp2.utils.global_vars import get_args
 logger = get_logger(__name__)
@@ -91,16 +91,12 @@ def get_blend_from_list(
 
 def need_to_build_dataset():
     args = get_args()
-    ps = ParallelState()
     share_save = not args.no_shared_storage
     rank = torch.distributed.get_rank()
     if share_save:
         return rank == 0
-    gpus_per_node = torch.cuda.device_count()
     current_rank = torch.cuda.current_device()
-    if ps.get_fsdp_group_size() > gpus_per_node:
-        return ps.get_fsdp_rank() == 0
-    return ps.get_fsdp_rank() == 0 and current_rank % gpus_per_node == 0
+    return current_rank == 0
 
 
 def is_shared_path(path: str, retry: int = 3, wait: float = 0.5) -> bool:

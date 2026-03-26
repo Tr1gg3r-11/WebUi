@@ -25,7 +25,7 @@ class ModelArguments:
     model_name_or_path: str = field(
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
-    model_id: Optional[Literal["gpt_oss", "qwen3", "qwen3_moe", "step35"]] = field(
+    model_id: Optional[Literal["gpt_oss", "qwen3", "qwen3_moe", "qwen3_next", "step35"]] = field(
         default=None,
         metadata={"help": "Model type. New model needs to be registered in the class ModelRegistry of mindspeed_llm/fsdp2/models/model_registry.py"}
     )
@@ -99,10 +99,6 @@ class ModelArguments:
         default="main",
         metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
-    infer_dtype: Literal["auto", "float16", "bfloat16", "float32"] = field(
-        default="auto",
-        metadata={"help": "Data type for model weights and activations at inference."},
-    )
     hf_hub_token: Optional[str] = field(
         default=None,
         metadata={"help": "Auth token to log in with Hugging Face Hub."},
@@ -119,9 +115,9 @@ class ModelArguments:
         default=None,
         metadata={"help": "Quantization strategy"},
     )
-    quant_format: Literal["E4M3", "E5M2", "HIF8"] = field(
+    quant_format: Literal["E4M3", "HYBRID", "HIF8"] = field(
         default=None,
-        metadata={"help": "FP8 format: 'E4M3', 'E5M2', or 'HIF8'."},
+        metadata={"help": "FP8 format: 'E4M3', 'HYBRID', or 'HIF8'."},
     )
     quant_block_size: int = field(
         default=32,
@@ -146,6 +142,19 @@ class ModelArguments:
                 "It's a list of strings where each string represents a specific quantization implementation."
                 "Default uses 'quantize.linear.mx' for mxfp8 quantization."},
     )
+    gemm_gradient_accumulation_fusion: bool = field(
+        default=False,
+        metadata={"help":
+                      "Enable or disable GEMM (General Matrix Multiply) gradient accumulation fusion optimization. "
+                      "When enabled, accumulates gradients from multiple mini-batches into a single GEMM operation "
+                      "to improve training efficiency and reduce memory access overhead. "},
+    )
+    quant_gmm: bool = field(
+        default=False,
+        metadata={"help":
+                      "Whether to enable grouped matrix multiplication quantization."},
+    )
+
 
     def __post_init__(self):
         if self.model_name_or_path is None:
@@ -170,7 +179,7 @@ class DataArguments:
         metadata={"help": "Eval dataset: config dict or comma-separated eval dataset names."}
     )
     dataset_dir: str = field(
-        default="./configs/FSDP2/data",
+        default="./configs/fsdp2/data",
         metadata={"help": "Path to the folder containing the datasets."},
     )
     cutoff_len: int = field(
@@ -233,9 +242,9 @@ class DataArguments:
         default=False,
         metadata={"help": "Whether or not to evaluate on each dataset separately."},
     )
-    packing: Optional[bool] = field(
-        default=None,
-        metadata={"help": "Enable sequences packing in training. Will automatically enable in pre-training."},
+    packing: bool = field(
+        default=False,
+        metadata={"help": "Enable sequences packing in training."},
     )
     neat_packing: bool = field(
         default=False,
@@ -285,7 +294,7 @@ class DataArguments:
         default=False,
         metadata={"help": "if no shared storage, set it."}
     )
-    dataloader_type: Literal["single", "cyclic", "external"] = field(
+    dataloader_type: Literal["single"] = field(
         default="single",
         metadata={
             "help": ("Single pass vs multiple pass data loader")
@@ -363,10 +372,6 @@ class ParallelArguments:
     ep_fsdp_size: int = field(
         default=1,
         metadata={"help": "FSDP size inside Expert Parallel groups."}
-    )
-    data_parallel_mode: Literal["ddp", "fsdp1", "fsdp2"] = field(
-        default="ddp",
-        metadata={"help": "Data parallel mode."},
     )
     cp_size: int = field(
         default=1,
@@ -462,17 +467,17 @@ class TrainingArguments:
         metadata={"help": "The output directory where the model predictions and checkpoints will be written."}
     )
     # --- Optimization ---
-    optimizer: Literal["adamw"] = field(
+    optimizer: Literal["adamw", "muon"] = field(
         default="adamw",
         metadata={"help": "Optimizer. Default to adamw."},
     )
     lr: float = field(
         default=1e-5,
-        metadata={"help": "The initial learning rate for AdamW."}
+        metadata={"help": "The initial learning rate."}
     )
     weight_decay: float = field(
         default=0.01,
-        metadata={"help": "Weight decay for AdamW if we apply some."}
+        metadata={"help": "Weight decay if we apply some."}
     )
     adam_beta1: float = field(
         default=0.9,
@@ -492,7 +497,7 @@ class TrainingArguments:
     )
 
     # --- Scheduling ---
-    lr_scheduler_type: str = field(
+    lr_scheduler_type: Literal["cosine", "linear", "constant"] = field(
         default="cosine",
         metadata={"help": "The scheduler type to use. (cosine, linear, constant)"}
     )
@@ -544,9 +549,13 @@ class TrainingArguments:
         default=1,
         metadata={"help": "Log every X updates steps."}
     )
-    report_to: Optional[str] = field(
-        default="wandb",
-        metadata={"help": "The list of integrations to report the results and logs to (e.g. 'wandb', 'tensorboard')."}
+    log_throughput: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable real-time logging of key throughput metrics, including tokens per second (tokens/s) and model FLOPs utilization (MFU) to quantify training/inference efficiency."},
+    )
+    log_cpu_memory: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable logging of memory utilization statistics for CPU devices."},
     )
     stage: Literal["pt", "sft"] = field(
         default="sft",
@@ -592,22 +601,6 @@ class TrainingArguments:
     )
     per_device_train_batch_size: int = field(
         default=8, metadata={"help": "Batch size per device accelerator core/CPU for training."}
-    )
-    use_fused_rmsnorm: bool = field(
-        default=False,
-        metadata={"help": "Use fused rmsnorm."}
-    )
-    moe_grouped_gemm: bool = field(
-        default=False,
-        metadata={"help": "When there are multiple experts per rank, launch multiple local GEMM kernels in multiple streams to improve the utilization and performance with GroupedLinear in TransformerEngine."}
-    )
-    use_fused_rotary_pos_emb: bool = field(
-        default=False,
-        metadata={"help": "Use fused rotary-pos-emb."}
-    )
-    use_flash_attn: bool = field(
-        default=False,
-        metadata={"help": "use FlashAttention implementation of attention."}
     )
     save_only_model: bool = field(
         default=False, metadata={"help": "When checkpointing, whether to only save the model, or also the optimizer, scheduler & rng state."}
@@ -678,6 +671,67 @@ class TrainingArguments:
                 raise ValueError("`profile_step_start` must be >= 0")
             if self.profile_step_end != -1 and self.profile_step_end <= self.profile_step_start:
                 raise ValueError("`profile_step_end` must be > profile_step_start or -1")
+
+
+@dataclass
+class InferenceArguments:
+    """
+    Inference hyperparameters: corresponding to requirements of the inference engine and generation config
+    """
+    
+    # --- Generation Config ---
+    infer_backend: Literal["huggingface"] = field(
+        default="huggingface",
+        metadata={"help": "The inference engine backend to use."}
+    )
+    max_new_tokens: int = field(
+        default=512,
+        metadata={"help": "The maximum numbers of tokens to generate, ignoring the number of tokens in the prompt."}
+    )
+    do_sample: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to use sampling; use greedy decoding otherwise."}
+    )
+
+    def __post_init__(self):
+        if self.max_new_tokens <= 0:
+            raise ValueError("`max_new_tokens` must be strictly positive (> 0).")
+            
+
+@dataclass
+class OptimizationArguments:
+    """
+    Inference hyperparameters: corresponding to requirements of the inference engine and generation config
+    """
+
+    use_fused_rmsnorm: bool = field(
+        default=False,
+        metadata={"help": "Use fused rmsnorm."}
+    )
+    moe_grouped_gemm: bool = field(
+        default=False,
+        metadata={"help": "When there are multiple experts per rank, launch multiple local GEMM kernels in multiple streams to improve the utilization and performance with GroupedLinear in TransformerEngine."}
+    )
+    use_fused_rotary_pos_emb: bool = field(
+        default=False,
+        metadata={"help": "Use fused rotary-pos-emb."}
+    )
+    use_flash_attn: bool = field(
+        default=False,
+        metadata={"help": "use FlashAttention implementation of attention."}
+    )
+    use_triton_gdn: bool = field(
+        default=False,
+        metadata={"help": "Use triton kernel accelerate training."}
+    )
+    gdn_chunk_size:int = field(
+        default=64,
+        metadata={"help": "Matrix blocking size of Gated DeltaNet."}
+    )
+    chunk_loss_size : int = field(
+        default=None,
+        metadata={"help": "Chunk loss size: set to > 0 to enable chunk loss calculation"}
+    )
 
 
 def _string_to_bool(value: Union[bool, str]) -> bool:

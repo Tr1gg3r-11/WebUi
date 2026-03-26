@@ -38,6 +38,7 @@ class Hf2MgConvert(Convert):
         self.save_dir = self.mg_path_process(args.save_dir)
 
         self.save_layer_by_layer = args.save_layer_by_layer
+        self.qlora_nf4 = getattr(args, 'qlora_nf4', False)
         # Safety guard: Enable layer-by-layer saving to avoid OOM when the product of TP and EP is high.
         # You can adjust this threshold value to control when this feature is applied.
         if self.tensor_model_parallel_size * self.expert_model_parallel_size >= LAYER_BY_LAYER_SAVING_THRESHOLD:
@@ -55,12 +56,10 @@ class Hf2MgConvert(Convert):
                 f"You specified num_layers = {self.num_layers}, "
                 f"but the actual model has num_layers = {self.load_model.num_layers}."
             )
-            
+
+        self.first_k_dense_replace = args.first_k_dense_replace
         if self.first_k_dense_replace is None:
-            self.first_k_dense_replace = getattr(self.load_model, 'first_k_dense_replace', 0)
-            if not getattr(self.load_model, 'num_experts', None):
-                self.first_k_dense_replace = self.num_layers
-                self.load_model.first_k_dense_replace = self.num_layers
+            self.first_k_dense_replace = self.get_first_k_dense_replace()
 
         # model arguments
         if self.noop_layers is None:
@@ -118,7 +117,8 @@ class Hf2MgConvert(Convert):
                 raise ValueError('sum of layer_list should be equal to num_layers')
             if self.noop_layers is not None:
                 raise ValueError('num_layer_list and noop_layers cannot be configured at the same time')
-
+        if self.qlora_nf4:
+            raise ValueError('Checkpoint converting is currently not supported for qlora-nf4')
         if self.load_model.qkv_type == "mix" and self.tensor_model_parallel_size > 1:
             raise ValueError('mix qkv-type and tp cannot be configured at the same time')
 
@@ -726,22 +726,18 @@ class Hf2MgConvert(Convert):
                         mg_weight[ep_rank][tp_rank][qkv_bias_key] = qkv_bias_lst[tp_rank].clone()
 
     def get_first_k_dense_replace(self):
-        if not getattr(self, 'first_k_dense_replace', 0):
-            num_experts = (getattr(self.load_model, 'num_experts', None) or
-                           getattr(self.load_model, 'num_local_experts', None))
-            if not num_experts:
-                return self.num_layers
-            else:
-                return 0
+        first_k_dense_replace = getattr(self.load_model, 'first_k_dense_replace', 0)
+        if first_k_dense_replace in (-1, 0, None):
+            return 0
         else:
-            return self.first_k_dense_replace
+            return first_k_dense_replace
 
     def set_model_layer_mlp(self, hf_layer_idx, local_layer_idx, hf_weight, mg_weight, mtp_layer_flag=False):
         """MLP layer process"""
 
         hf_weight_key = self.load_model.get_weight(layer_idx=hf_layer_idx)
         first_k_dense_replace = self.get_first_k_dense_replace()
-        if hf_layer_idx >= first_k_dense_replace:
+        if getattr(self.load_model, 'num_experts', None) and hf_layer_idx >= first_k_dense_replace:
             # moe layer & mtp layer
             mlp_router_weight = hf_weight.pop(hf_weight_key["layers_mlp_router"])
             mlp_router_weight = mlp_router_weight[:self.load_model.num_experts, :]

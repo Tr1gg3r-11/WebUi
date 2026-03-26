@@ -20,7 +20,6 @@ from mindspeed_llm.fsdp2.distributed.parallel_state import ParallelState
 from .data_utils import get_dataset
 from .template import Template
 from .collator import SFTDataCollatorWith4DAttentionMask
-from mindspeed.fsdp.distributed.parallel_state import ParallelState
 from mindspeed_llm.fsdp2.data.megatron_data.megatron_dataset_generate import train_valid_test_datasets_provider
 from mindspeed_llm.fsdp2.data.megatron_data.megatron_dataset_samplers import MegatronPretrainingSampler, MegatronPretrainingRandomSampler
 
@@ -220,8 +219,8 @@ class MegatronDataManager(DataManager):
                 total_samples=len(dataset),
                 consumed_samples=0,
                 micro_batch_size=training_args.per_device_train_batch_size,
-                data_parallel_rank=ps.get_fsdp_rank(),
-                data_parallel_size=ps.get_fsdp_group_size())
+                data_parallel_rank=ps.get_rank("dp_fsdp"),
+                data_parallel_size=ps.get_group_size("dp_fsdp"))
         else:
             raise Exception('{} dataloader type is not supported.'.format(
                     data_args.dataloader_type))
@@ -268,5 +267,13 @@ class DataFactory:
                 stage=stage,
                 tokenizer=tokenizer,
                 template=template
+            )
+        else:
+            raise ValueError(
+                f"Unsupported configuration combination: "
+                f"stage='{training_args.stage}', data_manager_type='{data_manager_type}'.\n"
+                f"Currently supported combinations are:\n"
+                f"  - stage='sft' with data_manager_type='lf' (Llamafactory style)\n"
+                f"  - stage='pt' with data_manager_type='mg' (Megatron style)"
             )
         

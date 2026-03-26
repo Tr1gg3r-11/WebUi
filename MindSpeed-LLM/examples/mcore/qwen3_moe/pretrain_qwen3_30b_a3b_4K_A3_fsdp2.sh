@@ -100,6 +100,7 @@ GPT_ARGS="
     --disable-bias-linear \
     --position-embedding-type rope \
     --normalization RMSNorm \
+    --norm-epsilon 1e-6 \
     --swiglu \
     --attention-softmax-in-fp32 \
     --no-gradient-accumulation-fusion \
@@ -126,7 +127,7 @@ OUTPUT_ARGS="
 
 FSDP2_ARGS="
     --use-torch-fsdp2 \
-    --fsdp2-config-path "configs/FSDP2/fsdp2_config_qwen3_30b.yaml" \
+    --fsdp2-config-path "configs/fsdp2/fsdp2_config_qwen3_30b.yaml" \
     --ckpt-format torch_dist \
 "
 

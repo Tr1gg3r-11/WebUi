@@ -83,6 +83,9 @@ except Exception as e:
 
 
 def update_save_checkpoint_chmod(save_path, permission=0o640):
+    args = get_args()
+    if args.enable_high_availability:
+        return
     if os.path.exists(save_path) and os.path.isdir(save_path):
         for root, _, files in os.walk(save_path):
             for file in files:
@@ -661,6 +664,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                        optimizer,
                        opt_param_scheduler,
                        config)
+        
         # Enable forward pre-hooks after first set of forward and backward passes.
         # When running in fp16, skip all NaN iterations until steady-state loss scaling value
         # is reached.
@@ -773,8 +777,8 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                 if full_checkpoint:
                     if not args.only_convert_last_checkpoint or iteration == args.train_iters:
                         _convert_weights_mg2hf(args, iteration)
-                    else:
-                        logging.warning("checkpoint not found, cannot convert mg2hf")
+                else:
+                    logging.warning("checkpoint not found, cannot convert mg2hf")
             update_save_checkpoint_chmod(config.save)
             saved_checkpoint = True
 

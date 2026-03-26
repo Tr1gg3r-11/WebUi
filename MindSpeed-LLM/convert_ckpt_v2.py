@@ -6,6 +6,7 @@ from mindspeed_llm.tasks.checkpoint.convert_hf2mg import Hf2MgConvert
 from mindspeed_llm.tasks.checkpoint.convert_mg2hf import Mg2HfConvert
 from mindspeed_llm.tasks.checkpoint.convert_ckpt_mamba2 import MambaConverter
 from mindspeed_llm.tasks.checkpoint.convert_ckpt_longcat import LongCatConverter
+from mindspeed_llm.training.utils import auto_coverage
 
 
 def get_args():
@@ -20,7 +21,7 @@ def get_args():
     parser.add_argument('--save-dir', type=str, required=True,
                         help='Directory to save model checkpoint to')
     parser.add_argument('--model-type-hf', type=str, default="qwen3",
-                        choices=['qwen3', 'qwen3-moe', 'deepseek3', 'glm45-moe', 'bailing_mini', 'qwen3-next', 'seed-oss', 'deepseek32', 'magistral', 'deepseek2-lite', 'phi3.5', 'mamba2', 'longcat'],
+                        choices=['qwen3', 'qwen3-moe', 'deepseek3', 'glm45-moe', 'bailing_mini', 'qwen3-next', 'seed-oss', 'deepseek32', 'magistral', 'deepseek2-lite', 'phi3.5', 'mamba2', 'longcat', 'glm5'],
                         help='model type of huggingface')
     parser.add_argument('--target-tensor-parallel-size', type=int, default=1,
                         help='Target tensor model parallel size, defaults to 1.')
@@ -65,12 +66,20 @@ def get_args():
                         help='Number of groups in Mamba v2 model')
     parser.add_argument('--mamba-head-dim', type=int, default=64,
                         help='Head dimension in Mamba v2 model')
+    parser.add_argument('--qlora-nf4', action='store_true', default=False,
+                        help='use bitsandbytes nf4 to quantize model.')
     parser.add_argument('--save-layer-by-layer', action='store_true', default=False,
                         help='Enable layer-by-layer saving to avoid OOM when the product of TP and EP is high')
+    parser.add_argument('--lora-load', type=str, default=None, help='Directory containing the lora model checkpoint.')
+    parser.add_argument('--lora-r', type=int, default=None, help='Lora r.')
+    parser.add_argument('--lora-alpha', type=int, default=None, help='Lora alpha.')
+    parser.add_argument('--lora-target-modules', nargs='+', type=str, default=[], help='Lora target modules.')
+    parser.add_argument('--save-lora-to-hf', action='store_true', help='only save lora ckpt to hf.')
     args, _ = parser.parse_known_args()
     return args
 
 
+@auto_coverage
 def main():
     args = get_args()
     logger.info(f"Arguments: {args}")

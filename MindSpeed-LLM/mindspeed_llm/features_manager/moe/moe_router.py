@@ -39,7 +39,6 @@ class MoERouter(MindSpeedFeature):
     def validate_args(self, args):
         self._validate_moe_args(args)
         self._validate_group_limited_greedy(args)
-        self._validate_aux_loss_free(args)
 
     def post_validate_args(self, args):
         if self.origin_spec:
@@ -74,13 +73,6 @@ class MoERouter(MindSpeedFeature):
                     'The topk group ({}) should be less than n-group(EP)({}).'.format(args.moe_router_group_topk,
                                                                                       args.expert_model_parallel_size))
 
-    def _validate_aux_loss_free(self, args):
-        if args.moe_router_enable_expert_bias and args.moe_router_score_function != "sigmoid":
-            raise ValueError(
-                "Expert bias for aux-loss-free routing only supports sigmoid score function."
-                "Please set --moe-router-score-function sigmoid for sigmoid score function."
-            )
-
     def register_patches(self, patch_manager, args):
         from mindspeed_llm.core.transformer.moe.router import (topk_router_routing, topk_router_init_wrapper, topk_router_gating_func)
         from mindspeed_llm.core.transformer.moe.moe_utils import z_loss_func, topk_softmax_with_capacity
@@ -100,7 +92,7 @@ class MoERouter(MindSpeedFeature):
             patch_manager.register_patch('megatron.core.transformer.moe.moe_layer.MoELayer.__init__', zero_experts_moe_layer_init_wrapper)
             patch_manager.register_patch('megatron.core.transformer.moe.moe_layer.MoELayer.forward', zero_experts_moe_forward)
 
-        elif not (args.moe_allgather_overlap_comm or args.moe_alltoall_overlap_comm):
+        elif not (args.moe_alltoall_mc2 or args.moe_allgather_overlap_comm or args.moe_alltoall_overlap_comm):
             # add moe layer forward patch for deepseekv2
             patch_manager.register_patch('megatron.core.transformer.moe.moe_layer.MoELayer.forward',
                                           moe_layer_forward)

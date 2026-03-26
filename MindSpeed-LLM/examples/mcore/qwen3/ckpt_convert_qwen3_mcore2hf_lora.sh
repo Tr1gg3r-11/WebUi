@@ -15,5 +15,6 @@ python convert_ckpt.py \
     --lora-target-modules linear_qkv linear_proj linear_fc1 linear_fc2 \
     --load-dir ${LOAD_DIR} \
     --lora-load ${LORA_LOAD} \
-    --save-dir ${SAVE_DIR} \
+    --save-dir ${ORI_DIR} \
     --model-type-hf qwen3 \
+    --save-lora-to-hf \

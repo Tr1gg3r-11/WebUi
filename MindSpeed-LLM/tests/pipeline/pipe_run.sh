@@ -24,11 +24,13 @@ pip install -r requirements.txt
 # megatron core_v0.12.1
 cp -rf /home/master_branch/Megatron-LM/megatron ./
 
-# Main
 # step 1: define dir
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 CURRENT_TIME=$(date "+%Y-%m-%d")
-BASELINE_DIR="$BASE_DIR/baseline"
+ST_DIR="$BASE_DIR/st"
+ST_BASELINE_DIR="$BASE_DIR/st/baseline"
+UT_DIR="$BASE_DIR/ut"
+
 GENERATE_LOG_BASE_DIR="/$(echo "$BASE_DIR" | cut -d'/' -f2)/pipeline_log_v2"
 GENERATE_LOG_DIR="$GENERATE_LOG_BASE_DIR/$CURRENT_TIME"
 
@@ -39,7 +41,7 @@ chmod a+w "$GENERATE_LOG_DIR/exec_error.log"
 echo "core0.12.0 Execution Results" > $GENERATE_LOG_DIR/exec_error.log
 
 # step 2: running scripts and execute `test_ci_pipeline.py` && running pytest
-find "$BASE_DIR" -mindepth 1 -maxdepth 1 -type d | while read -r dir; do
+find "$ST_DIR" -mindepth 1 -maxdepth 1 -type d | while read -r dir; do
     if [ -d "$dir" ]; then
         find "$dir" -type f -name "*.sh" | while read -r file; do
             filename=$(basename "$file")
@@ -52,7 +54,7 @@ find "$BASE_DIR" -mindepth 1 -maxdepth 1 -type d | while read -r dir; do
                 # begin to execute the logic of compare
                 echo "$(dirname "$BASE_DIR")/test_tools/test_ci_st.py"
                 pytest -x $(dirname "$BASE_DIR")/test_tools/test_ci_st.py \
-                    --baseline-json $BASELINE_DIR/$name.json \
+                    --baseline-json $ST_BASELINE_DIR/$name.json \
                     --generate-log $GENERATE_LOG_DIR/$name.log \
                     --generate-json $GENERATE_LOG_DIR/$name.json
                 PYTEST_EXITCODE=$?
@@ -63,13 +65,17 @@ find "$BASE_DIR" -mindepth 1 -maxdepth 1 -type d | while read -r dir; do
                 echo "${name}.sh Script has failed. Exit!" >> $GENERATE_LOG_DIR/exec_error.log
             fi
         done
+    fi
+done
 
-        # python test testing
+# step 3: running ut testcase
+find "$UT_DIR" -mindepth 1 -maxdepth 1 -type d | while read -r dir; do
+    if [ -d "$dir" ]; then
         find "$dir" -type f -name "*.py" | while read -r file; do
             echo "running $file"
             tmp_file_name="${file#*MindSpeed-LLM/}"
             file_name="${tmp_file_name//\//_}"
-            pytest -x --log-level=INFO "$file" 2>&1 | tee "${GENERATE_LOG_DIR}/${file_name}.log"
+            pytest --log-level=INFO "$file" 2>&1 | tee "${GENERATE_LOG_DIR}/${file_name}.log"
             PYTEST_EXITCODE=${PIPESTATUS[0]}
             if [ $PYTEST_EXITCODE -ne 0 ]; then
                 echo "$file has failed, check it!" >> "$GENERATE_LOG_DIR/exec_error.log"

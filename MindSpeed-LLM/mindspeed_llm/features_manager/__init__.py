@@ -36,6 +36,7 @@ from mindspeed.features_manager import (
     ProfilerDefaultFeature,
     OptimizeP2PCommFeature,
     FusionAttentionV2Feature,
+    MoEAlltoAllMC2Feature
 )
 from mindspeed.features_manager.feature import MindSpeedFeature
 from mindspeed.features_manager.features_manager import MindSpeedFeaturesManager
@@ -86,9 +87,8 @@ from mindspeed_llm.features_manager.ai_framework.ms_patch_feature import MindSpo
 from mindspeed_llm.features_manager.tensor_parallel.tp_2d import TP2dFeature
 from mindspeed_llm.features_manager.arguments.deprecated_args import DeprecatedArgsFeature
 from mindspeed_llm.features_manager.convert_checkpoint.convert_checkpoint import CheckpointFeature
-from mindspeed_llm.features_manager.fsdp2.fsdp2 import FSDP2Feature
 from mindspeed_llm.features_manager.memory.chunk_loss import ChunkLossFeature
-
+from mindspeed_llm.features_manager.layerwise_disaggregated_training.u_shaped_split_feature import UShapedSplitFeature
 
 FEATURES_LIST = [
     # MindSpeed Legacy Features
@@ -138,7 +138,6 @@ def add_llm_features(features_list: List[MindSpeedFeature]):
         MambaModel(),
         LanguageModelEmbeddingFeature(),
         CheckpointFeature(),
-        FSDP2Feature()
     ])
 
 
@@ -232,6 +231,7 @@ def add_swap_manage_features(features_list: List[MindSpeedFeature]):
 def add_moe_features(features_list: List[MindSpeedFeature]):
     features_list.extend([
         MoEGmmFeature(),
+        MoEAlltoAllMC2Feature(),
         # LLM feature
         MoERouter(),
         MoETpExtendEpFeature(),
@@ -308,6 +308,12 @@ def add_ai_framework_feature(features_list: List[MindSpeedFeature]):
     ])
 
 
+def add_layerwise_diaggregated_training_feature(feature_list: List[MindSpeedFeature]):
+    feature_list.extend([
+        UShapedSplitFeature()
+    ])
+
+
 def create_features_list():
     features_list = []
     add_megatron_basic_features(features_list)
@@ -332,6 +338,8 @@ def create_features_list():
     add_high_availability_feature(features_list)
     add_finetune_feature(features_list)
     add_ai_framework_feature(features_list)
+    add_layerwise_diaggregated_training_feature(features_list)
+
     return features_list
 
 

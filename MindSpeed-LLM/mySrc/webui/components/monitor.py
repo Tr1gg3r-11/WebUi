@@ -126,6 +126,8 @@ def build_monitor_tab() -> None:
             return gr.update(value=f"./models_mcore_weights/{model_id}/")
         def update_save_dir(model_id: str) -> gr.Textbox:
             return gr.update(value=f"./models_trained/{model_id}/")
+        def update_ori_dir(model_id: str) -> gr.Textbox:
+            return gr.update(value=f"./models_from_hf/{model_id}/")
         model_id.change(
             fn=update_load_dir,
             inputs=model_id,
@@ -136,6 +138,11 @@ def build_monitor_tab() -> None:
             inputs=model_id,
             outputs=save_dir
         )
+        model_id.change(
+            fn=update_ori_dir,
+            inputs=model_id,
+            outputs=ori_dir
+        )
         with gr.Row():
             lora = gr.Checkbox(label="lora", value=False, interactive=True)
         with gr.Row(visible=False) as row_lora:
@@ -145,20 +152,17 @@ def build_monitor_tab() -> None:
             with gr.Column():
                 md2 = gr.Markdown("> 控制 LoRA 权重对原始权重的影响比例, 数值越高则影响越大。一般保持 alpha/r 为 2")
                 lora_alpha = gr.Number(label="lora_alpha", value=16, precision=0, interactive=True)
-        def lora_config_update(lora: gr.Checkbox):
+            with gr.Column():
+                md = gr.Markdown("> !!!提示:此处lora配置应与训练时配置相同")
+                lora_load=gr.Textbox(label="lora训练后的checkpoint目录", value=f"./tune_lora_ckpt/your_model/", interactive=True)
+        def lora_config_update(lora: bool) -> gr.Row:
             return gr.update(visible=lora)
         lora.change(fn=lora_config_update,inputs=lora,outputs=row_lora)
-        def ori_or_lorackpt(lora: gr.Checkbox, model_id: gr.Dropdown):
-            if lora:
-                return gr.update(label="lora训练后的checkpoint目录", value=f"./tune_lora/ckpt/{model_id}/")
-            else:
-                return gr.update(label="模型原始config目录", value=f"./models_from_hf/{model_id}/")
-        gr.on(
-            triggers=[lora.change, model_id.change],
-            fn=ori_or_lorackpt,
-            inputs=[lora, model_id],
-            outputs=ori_dir
-        )
+        def save_visible(lora: bool) -> gr.Textbox:
+            return gr.udpate(visible=not lora)
+        lora.change(fn=save_visible,inputs=lora,outputs=save_dir)
+        def lora_load_update(model_id: str) -> gr.Textbox:
+            return gr.update(label="lora训练后的checkpoint目录", value=f"./tune_lora_ckpt/{model_id}/")
         
         md = gr.Markdown("> 💡 提示:此处应与最初下载时配置相同")
         with gr.Row():
@@ -202,5 +206,5 @@ def build_monitor_tab() -> None:
         convert_btn = gr.Button("开始转换")
         convert_btn.click(
             fn=convert_mcore2hf,
-            inputs=[lora, ori_dir, load_dir, save_dir, model_id, tp, cp, pp, lora_r, lora_alpha]
+            inputs=[lora_load, lora, ori_dir, load_dir, save_dir, model_id, tp, cp, pp, lora_r, lora_alpha]
         )

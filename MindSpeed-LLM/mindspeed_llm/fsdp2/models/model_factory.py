@@ -16,26 +16,22 @@ from mindspeed_llm.fsdp2.distributed.parallel_engine_config import (
 )
 
 from mindspeed_llm.fsdp2.utils.logging import get_logger
+from mindspeed_llm.fsdp2.models.model_loader import ModelLoader
 
 logger = get_logger(__name__)
 
-# ==============================================================================
-# [Mcore Imports] Dependencies for the Old Scheme
-# ==============================================================================
-try:
-    from mindspeed_llm.fsdp2.models.fsdp2_model import FSDP2Model
-except ImportError:
-    # Graceful fallback if mcore dependencies are missing in a pure MindSpeed FSDP environment
-    pass
-
 
 # ==============================================================================
-# ModelFactory (New Scheme)
+# ModelFactory
 # ==============================================================================
 class ModelFactory:
     """
     Responsible for building HuggingFace native models and wrapping them 
     as MindSpeed FSDP instances based on parallelization arguments.
+    
+    Supports two initialization modes controlled by model_args.init_model_with_meta_device:
+    - False: Load model fully on CPU (original behavior)
+    - True: Create empty model on meta device, load weights after FSDP wrapping
     """
 
     @staticmethod
@@ -44,7 +40,8 @@ class ModelFactory:
         Creates a MindSpeed FSDP wrapped model.
         
         Args:
-            model_args: Contains model_name_or_path, trust_remote_code, train_from_scratch, etc.
+            model_args: Contains model_name_or_path, trust_remote_code, train_from_scratch, 
+                        init_model_with_meta_device, etc.
             parallel_args: Contains tp_size, fsdp_size, recompute, ep_size, etc.
         """
         # 1. Setup Device
@@ -52,12 +49,17 @@ class ModelFactory:
         if torch.npu.is_available():
             # Respect LOCAL_RANK if set, otherwise default to 0
             local_rank = int(os.environ.get("LOCAL_RANK", 0))
-            device = torch.device(f"npu:{local_rank}")
-            torch.npu.set_device(device)
+            target_device = torch.device(f"npu:{local_rank}")
+            torch.npu.set_device(target_device)
         else:
-            device = torch.device("cpu")
+            target_device = torch.device("cpu")
 
-        # 2. Load HF Config
+        # 2. Determine initialization device based on init_model_with_meta_device flag
+        use_meta_device = getattr(model_args, 'init_model_with_meta_device', False)
+        init_device = "meta" if use_meta_device else "cpu"
+        logger.info_rank0(f"> Model initialization device: {init_device} (init_model_with_meta_device={use_meta_device})")
+
+        # 3. Load HF Config
         logger.info_rank0(f"> Loading AutoConfig from {model_args.model_name_or_path}...")
         trust_remote_code = model_args.trust_remote_code
         hf_config = AutoConfig.from_pretrained(
@@ -65,45 +67,21 @@ class ModelFactory:
             trust_remote_code=trust_remote_code
         )
 
-        # 3. Load HF Model
-        # Decide loading method based on whether training from scratch or fine-tuning.
-        # Typically: SFT uses `from_pretrained`, Pretrain (from scratch) uses `from_config`.
+        # 4. Load HF Model
+        # Decide loading method based on init_device and whether training from scratch or fine-tuning.
         # if model_id is configured, load model according to model_id.
+        model_cls = None
         if getattr(model_args, 'model_id', None):
             logger.info_rank0(f"> Using factory mode with model_id: {model_args.model_id}")
-
             model_cls = ModelRegistry.get_model_class(model_args.model_id)
+            if hasattr(model_cls, 'register_patches'):
+                model_cls.register_patches(model_args)
 
-            logger.info_rank0(f"> Loading model {model_cls.__name__} from pretrained path...")
-            model = model_cls.from_pretrained(
-                model_args.model_name_or_path,
-                config=hf_config,
-                low_cpu_mem_usage=True,
-                device_map="cpu",
-                dtype=torch.float32
-            )
-            logger.info_rank0("> Load model successfully")
+        # Use ModelLoader to create model based on init_device
+        loader = ModelLoader(model_args, init_device=init_device)
+        model, weights_path = loader.create_model(model_cls=model_cls)
 
-        else:
-            if getattr(model_args, 'train_from_scratch', False):
-                logger.info_rank0(f"> Initializing model from config (Random Weights) for Pretraining...")
-                model = AutoModelForCausalLM.from_config(
-                    hf_config,
-                    trust_remote_code=trust_remote_code,
-                    torch_dtype=torch.float32 # Use FP32 for mixed precision training
-                )
-            else:
-                logger.info_rank0(f"> Loading pretrained weights from {model_args.model_name_or_path}...")
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_args.model_name_or_path,
-                    config=hf_config,
-                    trust_remote_code=trust_remote_code,
-                    torch_dtype=torch.float32,  # Use FP32 for mixed precision training
-                    low_cpu_mem_usage=True,  # Reduce memory peak usage during loading
-                    device_map="cpu"  # Load to CPU first; MindSpeed FSDP handles sharding and moving
-                )
-
-        # 4. Build MindSpeed FSDP Configuration
+        # 5. Build MindSpeed FSDP Configuration
         # Dynamically calculate Data Parallel (DP) Size
         world_size = dist.get_world_size() if dist.is_initialized() else 1
         
@@ -115,15 +93,24 @@ class ModelFactory:
 
         parallel_config = ModelFactory._build_parallel_config(model_args, parallel_args, dp_size)
 
-        # 5. Wrap & Move
+        # 6. Wrap & Move
         logger.info_rank0(f"> Wrapping model with MindSpeed FSDP (TP={tp_size},CP={cp_size}, FSDP={fsdp_size})...")
 
         # MindSpeed FSDP will shard and wrap the CPU model based on the config.
         # The wrapped model automatically handles forward/backward communication.
-        model = MindSpeedParallelEngine(config=parallel_config, model=model)
+        # Pass init_device and weights_path for meta device support.
+        model = MindSpeedParallelEngine(
+            config=parallel_config, 
+            model=model,
+            init_device=init_device,
+            weights_path=weights_path
+        )
 
-        # Finally move the model to NPU
-        model = model.to(device)
+        # 7. Move to target device
+        # For cpu mode: move to NPU after wrapping
+        # For meta mode: weights are already loaded to device in MindSpeedParallelEngine
+        if init_device == "cpu":
+            model = model.to(target_device)
 
         return model
 
@@ -186,7 +173,9 @@ class ModelFactory:
             block_size=model_args.quant_block_size,
             quant_apply_modules=model_args.quant_apply_modules,
             quant_ignored_modules=model_args.quant_ignored_modules,
-            converters=model_args.converters
+            converters=model_args.converters,
+            quant_gmm=model_args.quant_gmm,
+            gemm_gradient_accumulation_fusion=model_args.gemm_gradient_accumulation_fusion
         )
 
         # --- 6. Assemble Config ---
@@ -227,57 +216,6 @@ class ModelFactory:
 
 
 # ==============================================================================
-# McoreModelFactory (Old Scheme)
-# Formerly FSDP2ModelFactory
-# ==============================================================================
-class McoreModelFactory:
-    """
-    [Mcore] Factory responsible for resolving HuggingFace classes and creating
-    the FSDP2-ready FSDP2Model wrapper.
-    """
-
-    @staticmethod
-    def create(config: Any) -> 'FSDP2Model':
-        """
-        Static Factory Method.
-        Args:
-            config: Configuration object containing 'init_from_hf_path' and 'model_id'.
-        """
-        hf_path = config.init_from_hf_path
-        transformer_config = AutoConfig.from_pretrained(hf_path, trust_remote_code=True)
-
-        # 1. Strategy: Determine which HF class to use
-        model_cls = McoreModelFactory._resolve_model_class(config, transformer_config)
-        
-        # Apply model-specific patches (e.g., for NPU compatibility)
-        if hasattr(model_cls, 'register_patches'):
-            model_cls.register_patches(config)
-
-        # 2. Composition: Inject configuration and class into the Wrapper
-        model = FSDP2Model(
-            config=config,
-            transformer_config=transformer_config,
-            model_cls=model_cls
-        )
-
-        return model
-
-    @staticmethod
-    def _resolve_model_class(config: Any, transformer_config: PretrainedConfig) -> Type[Any]:
-        """
-        Resolves the specific model class from the registry based on 'model_id'.
-        """
-        # Explicit mapping via config (Lookup in Registry)
-        model_id = getattr(config, "model_id", None)
-        if model_id:
-            cls = ModelRegistry.get_model_class(model_id)
-            if cls:
-                return cls
-
-        raise ValueError(f"Could not resolve model class for model_id='{model_id}'")
-
-
-# ==============================================================================
 # [Facade] AutoModelFactory
 # Unified entry point used by AutoTrainer
 # ==============================================================================
@@ -291,17 +229,5 @@ class AutoModelFactory:
     def create(*args, **kwargs):
         """
         Factory method that forwards arguments to the specific implementation.
-        
-        Dispatch Logic:
-            - If TRAINING_BACKEND == 'mindspeed_fsdp': calls ModelFactory.create
-            - Otherwise: calls McoreModelFactory.create
         """
-        backend = os.environ.get("TRAINING_BACKEND", "mcore").lower()
-
-        if backend == "mindspeed_fsdp":
-            # MindSpeed FSDP implementation expects (model_args, parallel_args)
-            return ModelFactory.create(*args, **kwargs)
-
-        else:
-            # Mcore implementation expects a single 'config' object
-            return McoreModelFactory.create(*args, **kwargs)
+        return ModelFactory.create(*args, **kwargs)

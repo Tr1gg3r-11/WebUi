@@ -27,7 +27,7 @@ def convert_hf2mcore(load_dir: str, save_dir: str, model_id: str, tp: int, cp: i
     gr.Info("🚀 模型权重格式转换中...", duration=1)
     subprocess.run(['bash', file_path], env=my_env)
 
-def convert_mcore2hf(lora: bool, ori_dir: str, load_dir: str, save_dir: str, model_id: str, tp: int, cp: int, pp: int, lora_r: int, lora_alpha: int) -> None:
+def convert_mcore2hf(lora_load: str, lora: bool, ori_dir: str, load_dir: str, save_dir: str, model_id: str, tp: int, cp: int, pp: int, lora_r: int, lora_alpha: int) -> None:
     values = [tp, cp, pp, lora_r, lora_alpha]
     keys = ['TP', 'CP', 'PP', 'lora_r', 'lora_alpha']
     check = True
@@ -40,8 +40,8 @@ def convert_mcore2hf(lora: bool, ori_dir: str, load_dir: str, save_dir: str, mod
         file_path = MODEL_CONVERT_MCORE2HF_LORA_SH[model_id]
     my_env = os.environ.copy()
     if lora:
-        my_env.update({"TP": str(tp), "PP": str(pp), "CP": str(cp), "LOAD_DIR": load_dir, "SAVE_DIR": save_dir, "LORA_LOAD": ori_dir,
-                    "LORA_R": str(lora_r), "LORA_ALPHA": str(lora_alpha)})
+        my_env.update({"TP": str(tp), "PP": str(pp), "CP": str(cp), "LOAD_DIR": load_dir, "ORI_DIR": ori_dir, "LORA_LOAD": lora_load,
+                    "LORA_R": str(lora_r), "LORA_ALPHA": str(lora_alpha), "SAVE_DIR": save_dir})
     else:
         my_env.update({"TP": str(tp), "PP": str(pp), "CP": str(cp), "LOAD_DIR": load_dir, "SAVE_DIR": save_dir, "ORI_DIR": ori_dir})
     gr.Info("🚀 模型权重格式转换中...", duration=1)

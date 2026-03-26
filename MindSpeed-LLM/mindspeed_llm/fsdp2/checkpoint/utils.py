@@ -6,6 +6,7 @@ import os
 import torch
 from collections import OrderedDict
 from functools import lru_cache
+from dataclasses import dataclass
 from typing import Any, Dict, Optional, Union, Tuple
 from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME
 from safetensors.torch import save_file
@@ -13,7 +14,9 @@ from torch.distributed.checkpoint.metadata import STATE_DICT_TYPE
 from torch.distributed.checkpoint.state_dict_loader import _load_state_dict
 from torch.distributed.checkpoint import FileSystemReader
 from torch.distributed.checkpoint.default_planner import _EmptyStateDictLoadPlanner
+from torch.distributed._tensor import DeviceMesh, DTensor, Shard, Replicate
 
+from mindspeed_llm.fsdp2.distributed.expert_parallel.expert_parallel import get_ep_modules
 from mindspeed_llm.fsdp2.utils.logging import get_logger
 
 # --------------------------
@@ -226,15 +229,19 @@ def save_state_dict(
 # --------------------------
 # Checkpoint Cleanup Utilities
 # --------------------------
-def cleanup_old_checkpoints(training_args):
+def cleanup_old_checkpoints(training_args, shared_file_system: bool = True):
     """
     Remove old checkpoints based on save_total_limit.
 
-    This function is typically executed after saving a new checkpoint
-    to limit disk usage.
+    Checkpoints are sorted by modification time (oldest first).
+    For shared storage, only rank 0 performs deletion.
+    For non-shared storage, each node's local_rank 0 deletes its own local copy.
+
+    All ranks must call this function together.
 
     Args:
         training_args: Training arguments containing output_dir and save_total_limit
+        shared_file_system (bool): Whether nodes share the same filesystem.
     """
     if not hasattr(training_args, "save_total_limit"):
         return
@@ -243,71 +250,161 @@ def cleanup_old_checkpoints(training_args):
     if save_total_limit is None or save_total_limit <= 0:
         return
 
-    # Only rank 0 performs filesystem operations
-    if torch.distributed.get_rank() == 0:
-        output_dir = training_args.output_dir
-        checkpoints = []
+    rank = torch.distributed.get_rank()
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
 
-        # Collect all checkpoint directories
-        for item in os.listdir(output_dir):
-            if item.startswith("checkpoint-"):
-                checkpoint_path = os.path.join(output_dir, item)
+    should_delete = (rank == 0) if shared_file_system else (local_rank == 0)
+
+    if should_delete:
+        checkpoint_dir = os.path.join(training_args.output_dir, "checkpoints")
+        if os.path.isdir(checkpoint_dir):
+            checkpoints = []
+            for item in os.listdir(checkpoint_dir):
+                checkpoint_path = os.path.join(checkpoint_dir, item)
                 if os.path.isdir(checkpoint_path):
+                    mtime = os.path.getmtime(checkpoint_path)
+                    checkpoints.append((mtime, checkpoint_path))
+
+            # Sort by modification time, oldest first
+            checkpoints.sort(key=lambda x: x[0])
+
+            if len(checkpoints) > save_total_limit:
+                for _, checkpoint_path in checkpoints[:-save_total_limit]:
                     try:
-                        step = int(item.split("-")[1])
-                        checkpoints.append((step, checkpoint_path))
-                    except (IndexError, ValueError) as e:
-                        raise ValueError(f"Invalid checkpoint directory name: {item}") from e
-
-        # Sort checkpoints by step
-        checkpoints.sort(key=lambda x: x[0])
-
-        # Remove oldest checkpoints if exceeding limit
-        if len(checkpoints) > save_total_limit:
-            for _, checkpoint_path in checkpoints[:-save_total_limit]:
-                logger.info_rank0(f"Removing old checkpoint: {checkpoint_path}")
-                import shutil
-                shutil.rmtree(checkpoint_path)
-
-    # Synchronize all ranks
+                        if os.path.isdir(checkpoint_path):
+                            if rank == 0:
+                                logger.info_rank0(f"Removing old checkpoint: {checkpoint_path}")
+                            import shutil
+                            shutil.rmtree(checkpoint_path)
+                    except FileNotFoundError:
+                        pass
+    # Synchronize all ranks after cleanup
     torch.distributed.barrier()
 
 
 # --------------------------
-# DCP Conversion Utilities
+# EP Checkpoint  Utilities
 # --------------------------
-def dcp_to_torch_state_dict(
-    save_checkpoint_path: Union[str, os.PathLike]
-) -> STATE_DICT_TYPE:
-    """
-    Convert a DCP checkpoint directory into a torch state_dict.
-
-    This utility is mainly used for:
-    - Debugging
-    - Model format conversion
-    - Offline weight inspection
+def drop_ep_dim(loaded_tensor: torch.Tensor, device_mesh: DeviceMesh) -> torch.Tensor:
+    """Drop the Expert Parallelism (EP) dimension from a tensor loaded from a DCP checkpoint.
 
     Args:
-        save_checkpoint_path (str or PathLike): DCP checkpoint directory
+        loaded_tensor (torch.Tensor | DTensor): The tensor loaded from a DCP checkpoint,
+            potentially containing an extra EP dimension.
+        device_mesh (DeviceMesh): A 2D device mesh with dimensions ("ep", "ep_fsdp").
 
     Returns:
-        STATE_DICT_TYPE: Torch-style model state_dict
-
-    Warning:
-        To avoid OOM, this function should be executed on a single rank.
+        torch.Tensor | DTensor: The tensor with the EP dimension removed, ready to be
+            copied into model parameters.
     """
-    state_dict: STATE_DICT_TYPE = {}
+    if device_mesh.ndim != 2:
+        raise ValueError(f"device_mesh.ndim must be 2, got {device_mesh.ndim}")
+    ep_fsdp_mesh = device_mesh["ep_fsdp"]
 
-    # Load state_dict using an empty planner (no sharding / redistribution)
-    _load_state_dict(
-        state_dict,
-        storage_reader=FileSystemReader(save_checkpoint_path),
-        planner=_EmptyStateDictLoadPlanner(),
-        no_dist=True,
+    if isinstance(loaded_tensor, DTensor):
+        if len(loaded_tensor.placements) == 2:
+            # EP + FSDP sharded: keep only the FSDP shard on the ep_fsdp sub-mesh
+            tensor_to_put = DTensor.from_local(
+                loaded_tensor.to_local(), device_mesh=ep_fsdp_mesh, placements=[Shard(1)]
+            )
+        elif len(loaded_tensor.placements) == 1:
+            # EP-only sharded: collapse to plain local tensor
+            tensor_to_put = loaded_tensor.to_local()
+        else:
+            raise RuntimeError(
+                f"Expect EP parameters to be DTensor with 1 or 2 placements, got {loaded_tensor.placements}"
+            )
+    else:
+        # Plain tensor — no EP dimension present
+        tensor_to_put = loaded_tensor
+
+    return tensor_to_put
+
+
+def restore_ep_dim(origin_tensor: torch.Tensor, device_mesh: DeviceMesh) -> DTensor:
+    """Restore the Expert Parallelism (EP) dimension on a tensor for DCP checkpoint saving.
+
+    Args:
+        origin_tensor (torch.Tensor | DTensor): The model tensor to be saved, in its current EP-sharded layout.
+        device_mesh (DeviceMesh): A 2D device mesh with dimensions ("ep", "ep_fsdp").
+
+    Returns:
+        DTensor: The tensor with the EP dimension restored, suitable for DCP saving.
+
+    """
+    if device_mesh.ndim != 2:
+        raise ValueError(f"device_mesh.ndim must be 2, got {device_mesh.ndim}")
+    ep_mesh = device_mesh["ep"]
+
+    if isinstance(origin_tensor, DTensor):
+        # Already a DTensor (EP + FSDP): re-wrap with both shard dimensions on the full mesh
+        dtensor = DTensor.from_local(
+            origin_tensor.to_local(), device_mesh=device_mesh, placements=[Shard(0), Shard(1)]
+        )
+    elif torch.is_tensor(origin_tensor):
+        # Plain tensor (EP-only): wrap with EP shard on the EP sub-mesh
+        dtensor = DTensor.from_local(origin_tensor, device_mesh=ep_mesh, placements=[Shard(0)])
+    else:
+        raise RuntimeError(f"origin_tensor - {origin_tensor} is not a tensor!")
+
+    return dtensor
+
+
+@dataclass
+class EPSpecInfo:
+    """Specification for how an Expert Parallelism (EP) parameter should be
+    saved/restored as a DTensor during checkpointing.
+
+    Attributes:
+        placement (Union[Shard, Replicate]): The DTensor placement strategy for the EP dimension (typically Shard(0) for expert-parallel parameters).
+        ep_fsdp_mesh (DeviceMesh): A 2D device mesh with dimensions ("ep", "ep_fsdp") used to construct the DTensor layout during save/load.
+    """
+    placement: Union[Shard, Replicate]
+    ep_fsdp_mesh: DeviceMesh  # ("ep", "ep_fsdp") 2D mesh
+
+
+def build_ep_fqn2spec_info(
+    model, parallel_state, ep_plan
+) -> Dict[str, EPSpecInfo]:
+    """Build a mapping from parameter fully-qualified names (FQNs) to their EP spec info.
+
+    Args:
+        model: The model instance. Must support `named_modules()` and `named_parameters()`. Its inner `model.model` attribute is passed
+            to `get_ep_modules` to resolve expert modules.
+        parallel_state (ParallelState): The current parallelism configuration, used to query EP and E-FSDP group sizes.
+        ep_plan: The expert parallelism plan (from `model.config.ep_plan`)
+            that defines which modules are expert-parallel.
+
+    Returns:
+        Dict[str, EPSpecInfo]: A dictionary mapping each expert parameter's FQN
+            to its `EPSpecInfo`, containing the placement strategy and the 2D
+            ("ep", "ep_fsdp") device mesh for checkpoint transformations.
+    """
+    ep_size = parallel_state.get_ep_group_size()
+    efsdp_size = (
+        parallel_state.get_efsdp_group_size()
+        if parallel_state.is_efsdp_enable() else 1
     )
 
-    # Handle flattened state_dict format
-    if "state" in state_dict:
-        state_dict = state_dict["state"]
+    # Construct a logical 2D mesh: rows = EP ranks, cols = E-FSDP ranks
+    ep_fsdp_mesh = DeviceMesh(
+        device_type="npu",
+        mesh=torch.arange(ep_size * efsdp_size).view(ep_size, efsdp_size),
+        mesh_dim_names=("ep", "ep_fsdp"),
+    )
 
-    return state_dict["model"]
+    # Identify all modules designated as expert-parallel by the EP plan
+    ep_modules = get_ep_modules(model.model, ep_plan)
+    ep_module_fqns = {
+        name for name, module in model.named_modules()
+        if module in ep_modules
+    }
+
+    # Map each parameter belonging to an EP module to its spec info
+    fqn2spec = {}
+    for fqn, _ in model.named_parameters():
+        if any(fqn == m or fqn.startswith(m + ".") for m in ep_module_fqns):
+            fqn2spec[fqn] = EPSpecInfo(
+                placement=Shard(0), ep_fsdp_mesh=ep_fsdp_mesh
+            )
+    return fqn2spec

@@ -5,7 +5,8 @@ export CPU_AFFINITY_CONF=1
 export TASK_QUEUE_ENABLE=2
 export TORCH_HCCL_ZERO_COPY=1
 export PYTORCH_NPU_ALLOC_CONF="expandable_segments:True"
-export HCCL_CONNECT_TIMEOUT=3600
+export HCCL_CONNECT_TIMEOUT=7200
+export HCCL_EXEC_TIMEOUT=7200
 export STREAMS_PER_DEVICE=32
 
 NPUS_PER_NODE=16
@@ -20,7 +21,7 @@ DATA_PATH="your data path"
 TOKENIZER_PATH="your tokenizer path"
 CKPT_LOAD_DIR="your model ckpt path"
 
-TP=1
+TP=4
 PP=8
 EP=64
 CP=1
@@ -69,6 +70,7 @@ MOE_ARGS="
     --moe-router-score-function sigmoid \
     --moe-router-enable-expert-bias \
     --moe-router-dtype fp32 \
+    --expert-tensor-parallel-size 1 \
 "
 
 MTP_ARGS="

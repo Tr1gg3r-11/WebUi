@@ -1,6 +1,6 @@
 RUNNING_LOG = "running_log.txt"
 
-SUPPORTED_MODEL=["Qwen3-0.6B", "Test_Other"]
+SUPPORTED_MODEL=["Qwen3-0.6B", "Qwen2.5-0.5B", "Test_Other"]
 
 SFT_FULL = {}
 SFT_LORA = {}
@@ -25,12 +25,19 @@ MINIMUM = {
 MAXIMUM = {
 }
 LR = {
+    'Qwen2.5-0.5B_pretrain' : 1.25e-6,
+    'Qwen2.5-0.5B_SFT(全参)' : 1e-6,
+    'Qwen2.5-0.5B_SFT(LoRA)' : 7.75e-7,
+    'Qwen2.5-0.5B_SFT(全参)_pack' : 7.75e-7,
     'Qwen3-0.6B_pretrain' : 1.25e-6,
     'Qwen3-0.6B_SFT(全参)' : 1.25e-6,
     'Qwen3-0.6B_SFT(LoRA)' : 1.25e-5,
     'Qwen3-0.6B_SFT(全参)_pack' : 1.25e-6
 }
 MIN_LR = {
+    'Qwen2.5-0.5B_pretrain' : 1.25e-7,
+    'Qwen2.5-0.5B_SFT(LoRA)' : 7.75e-8,
+    'Qwen2.5-0.5B_SFT(全参)_pack' : 7.75e-8,
     'Qwen3-0.6B_pretrain' : 1.25e-7,
     'Qwen3-0.6B_SFT(LoRA)' : 1.25e-7,
     'Qwen3-0.6B_SFT(全参)_pack' : 1.25e-7,
@@ -56,29 +63,43 @@ DATA_CONVERT_SH={
     "Qwen3-0.6B_pretrain":"examples/mcore/qwen3/data_convert_qwen3_pretrain.sh",
     "Qwen3-0.6B_sft":"examples/mcore/qwen3/data_convert_qwen3_instruction.sh",
     "Qwen3-0.6B_sft_pack":"examples/mcore/qwen3/data_convert_qwen3_instruction.sh",
+    "Qwen2.5-0.5B_pretrain":"examples/mcore/qwen25/data_convert_qwen25_pretrain.sh",
+    "Qwen2.5-0.5B_sft":"examples/mcore/qwen25/data_convert_qwen25_instruction.sh",
+    "Qwen2.5-0.5B_sft_pack":"examples/mcore/qwen25/data_convert_qwen25_instruction_pack.sh",
 }
 MODEL_DOWNLOAD_SH={
     "Qwen3-0.6B-HuggingFace":"mySrc/scripts/models/qwen3-0point6b-HuggingFace.sh",
     "Qwen3-0.6B-ModelScope":"mySrc/scripts/models/qwen3-0point6b-ModelScope.sh",
+    "Qwen2.5-0.5B-HuggingFace":"mySrc/scripts/models/qwen2.5-0point5b-HuggingFace.sh",
+    "Qwen2.5-0.5B-ModelScope":"mySrc/scripts/models/qwen2.5-0point5b-ModelScope.sh",
 }
 MODEL_CONVERT_HF2MCORE_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/ckpt_convert_qwen3_hf2mcore.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_hf2mcore.sh",
 }
 MODEL_CONVERT_MCORE2HF_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/ckpt_convert_qwen3_mcore2hf.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf.sh",
 }
 MODEL_CONVERT_MCORE2HF_LORA_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/ckpt_convert_qwen3_mcore2hf_lora.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/ckpt_convert_qwen25_mcore2hf_lora.sh",
 }
 PRETRAIN_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/pretrain_qwen3_0point6b_4K_ptd.sh",
     "Qwen3-0.6B_pack":"examples/mcore/qwen3/pretrain_qwen3_0point6b_4K_ptd.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen3/pretrain_qwen25_0point5b_32k_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen3/pretrain_qwen25_0point5b_32k_ptd.sh",
 }
 SFT_LORA_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/tune_qwen3_0point6b_4K_lora_ptd.sh",
     "Qwen3-0.6B_pack":"examples/mcore/qwen3/tune_qwen3_0point6b_4K_lora_ptd.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_lora_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_lora_ptd.sh",
 }
 SFT_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/tune_qwen3_0point6b_4K_full_ptd.sh",
     "Qwen3-0.6B_pack":"examples/mcore/qwen3/tune_qwen3_0point6b_4K_full_ptd.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen3/tune_qwen25_0point5b_4k_full_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen3/tune_qwen25_0point5b_4k_full_pack.sh",
 }

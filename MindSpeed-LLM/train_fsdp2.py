@@ -2,45 +2,31 @@ import os
 import sys
 import types
 
-# ==============================================================================
-# [Mcore Imports] Dependencies for Megatron
-# To be removed when the mcore scheme is deprecated.
-# ==============================================================================
-try:
-   from mindspeed_llm.fsdp2.train.pretrain_trainer import FSDP2PretrainTrainer
-   from mindspeed_llm.fsdp2.train.sft_trainer import FSDP2SFTTrainer
-   from mindspeed_llm.fsdp2.models.model_factory import McoreModelFactory
-   from megatron.training import get_args as get_megatron_args, print_rank_0 as print_rank_0_mcore
-   from megatron.training.initialize import initialize_megatron
-except ImportError:
-   # Catch exception to prevent errors in MindSpeed FSDP environment where megatron might not be installed
-   pass
-
-# ==============================================================================
-# [MindSpeed FSDP Imports] Dependencies for MindSpeed FSDP
-# ==============================================================================
 from dataclasses import dataclass, field, fields
 import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
+from transformers import AutoConfig, AutoModelForCausalLM
 
 from mindspeed_llm.fsdp2.models.model_factory import ModelFactory
 from mindspeed_llm.fsdp2.optim.optimizer import OptimizerFactory
 from mindspeed_llm.fsdp2.optim.scheduler import SchedulerFactory
 from mindspeed_llm.fsdp2.checkpoint.checkpoint_manager import CheckpointManager
-from mindspeed_llm.fsdp2.train.mindspeed_trainer import Trainer
+from mindspeed_llm.fsdp2.train.trainer import Trainer
 from mindspeed_llm.fsdp2.data.data_factory import DataFactory
 from mindspeed_llm.fsdp2.data.tokenizer import TokenizerFactory
 from mindspeed_llm.fsdp2.data.template import get_template_and_fix_tokenizer
 from mindspeed_llm.fsdp2.utils.logging import setup_global_logging, get_logger
 from mindspeed_llm.fsdp2.utils.arguments import (
-   ModelArguments, DataArguments, ParallelArguments, TrainingArguments, fsdp2_parse_args
+   ModelArguments, DataArguments, ParallelArguments, TrainingArguments, OptimizationArguments, fsdp2_parse_args
 )
 from mindspeed_llm.fsdp2.utils.global_vars import set_args
+from mindspeed_llm.fsdp2.utils.train_monitor import TrainMonitor
 
 from mindspeed.fsdp.utils.device import set_accelerator_compatible
 from mindspeed.fsdp.utils.random import set_seed
 from mindspeed.fsdp.utils.torch_patch import apply_hccl_premul_sum_patch
+from mindspeed_llm.training.utils import auto_coverage
 
 
 logger = get_logger(__name__)
@@ -55,47 +41,11 @@ class Arguments:
    data: DataArguments = field(default_factory=DataArguments)
    parallel: ParallelArguments = field(default_factory=ParallelArguments)
    training: TrainingArguments = field(default_factory=TrainingArguments)
+   optimization: OptimizationArguments = field(default_factory=OptimizationArguments)
 
 
 # ==============================================================================
-# Mcore AutoTrainer (Old Scheme)
-# ==============================================================================
-class McoreAutoTrainer:
-   """
-   [Mcore] Act as the Composition Root for Dependency Injection.
-   Based on Megatron-LM arguments and initialization.
-   """
-
-   def __init__(self):
-      # 1. Centralize Megatron environment initialization here.
-      initialize_megatron()
-
-      # 2. Retrieve arguments for logic determination.
-      self.args = get_megatron_args()
-
-      # 3. Instantiate the specific Trainer.
-      self.trainer = self._build_trainer()
-
-   def train(self):
-      if self.trainer:
-         self.trainer.train()
-      else:
-         raise RuntimeError("Failed to initialize a valid trainer.")
-
-   def _build_trainer(self):
-      # Define the dependency
-      model_builder = McoreModelFactory.create
-
-      if self.args.stage == "sft":
-         print_rank_0_mcore(">>> [McoreAutoTrainer] Mode: Finetuning")
-         return FSDP2SFTTrainer(model_builder=model_builder)
-      else:
-         print_rank_0_mcore(">>> [McoreAutoTrainer] Mode: Pretraining")
-         return FSDP2PretrainTrainer(model_builder=model_builder)
-
-
-# ==============================================================================
-# AutoTrainer (New Scheme)
+# AutoTrainer
 # ==============================================================================
 class MindSpeedAutoTrainer:
    """
@@ -118,12 +68,10 @@ class MindSpeedAutoTrainer:
       self.tokenizer = self._build_tokenizer()
       self.template = get_template_and_fix_tokenizer(self.tokenizer, self.data_args)
       self.data_manager = self._build_data_manager(self.tokenizer, self.template)
-
-
       self.optimizer = self._build_optimizer(self.model)
       self.lr_scheduler = self._build_scheduler(self.optimizer)
-
       self.checkpoint_manager = self._build_checkpointer()
+      self.train_monitor = self._build_monitor()
 
       # 4. Dependency Injection
       self.trainer = Trainer(
@@ -132,10 +80,14 @@ class MindSpeedAutoTrainer:
          lr_scheduler=self.lr_scheduler,
          data_manager=self.data_manager,
          args=self.training_args,
-         parallel_args = self.parallel_args,
+         parallel_args=self.parallel_args,
+         optimization_args=self.optimization_args,
+         data_args=self.data_args,
          ckpt_manager=self.checkpoint_manager,
-         tokenizer=self.tokenizer
+         monitor=self.train_monitor,
+         tokenizer=self.tokenizer,
       )
+
    @staticmethod
    def _initialize(seed: int):
       """
@@ -195,9 +147,10 @@ class MindSpeedAutoTrainer:
       self.data_args = root_args.data
       self.parallel_args = root_args.parallel
       self.training_args = root_args.training
+      self.optimization_args = root_args.optimization
 
       self.args = types.SimpleNamespace(**{
-         k: v for ns in [root_args.model, root_args.data, root_args.parallel, root_args.training]
+         k: v for ns in [root_args.model, root_args.data, root_args.parallel, root_args.training, root_args.optimization]
          for k, v in ns.__dict__.items()
       })
 
@@ -234,7 +187,6 @@ class MindSpeedAutoTrainer:
       logger.info_rank0("> Building Optimizer...")
       return OptimizerFactory.create(
          model=model,
-         data_parallel_mode=self.parallel_args.data_parallel_mode,
          ep_size=self.parallel_args.ep_size,
          lr=self.training_args.lr,
          optimizer_type=self.training_args.optimizer,
@@ -276,6 +228,14 @@ class MindSpeedAutoTrainer:
          template=template
       )
 
+   def _build_monitor(self):
+      logger.info_rank0("> Building Monitor...")
+      hf_config = AutoConfig.from_pretrained(
+         self.model_args.model_name_or_path,
+         trust_remote_code=True
+      )
+      return TrainMonitor(self.training_args, hf_config)
+
    def _build_checkpointer(self):
       logger.info_rank0("> Building Checkpointer...")
       return CheckpointManager
@@ -291,25 +251,22 @@ class AutoTrainer:
    """
    def __init__(self):
       # Strategy Dispatch: Prioritize environment variable TRAINING_BACKEND
-      # Default to 'mcore' (old scheme). 
-      # To run MindSpeed code, set: export TRAINING_BACKEND=mindspeed_fsdp
-      backend = os.environ.get("TRAINING_BACKEND", "mcore").lower()
-
-      if backend == "mindspeed_fsdp":
-         logger.info_rank0(f">>> [AutoTrainer] Initializing MindSpeed FSDP backend...")
-         self.trainer = MindSpeedAutoTrainer()
-      else:
-         logger.info_rank0(f">>> [AutoTrainer] Initializing mcore backend...")
-         self.trainer = McoreAutoTrainer()
+      # To run MindSpeed FSDP code, set: export TRAINING_BACKEND=mindspeed_fsdp
+      logger.info_rank0(f">>> [AutoTrainer] Initializing MindSpeed FSDP backend...")
+      self.trainer = MindSpeedAutoTrainer()
 
    def train(self):
       """Delegate to the implementation"""
       self.trainer.train()
 
 
+@auto_coverage
+def main():
+   trainer = AutoTrainer()
+   trainer.train()
 # ==============================================================================
 # [Entry Point]
 # ==============================================================================
 if __name__ == "__main__":
-   trainer = AutoTrainer()
-   trainer.train()
+    main()
+    
