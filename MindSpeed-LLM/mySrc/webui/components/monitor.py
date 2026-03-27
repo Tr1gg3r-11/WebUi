@@ -107,7 +107,7 @@ def build_monitor_tab() -> None:
             load_dir = gr.Textbox(
                 label="加载目录",
                 placeholder="请输入文件夹路径",
-                value=f"./models_mcore_weights/your_model/",
+                value=f"./ckpt/your_model/",
                 interactive=True
             )
             ori_dir = gr.Textbox(
@@ -122,17 +122,10 @@ def build_monitor_tab() -> None:
                 value=f"./models_trained/your_model/",
                 interactive=True
             )
-        def update_load_dir(model_id: str) -> gr.Textbox:
-            return gr.update(value=f"./models_mcore_weights/{model_id}/")
         def update_save_dir(model_id: str) -> gr.Textbox:
             return gr.update(value=f"./models_trained/{model_id}/")
         def update_ori_dir(model_id: str) -> gr.Textbox:
             return gr.update(value=f"./models_from_hf/{model_id}/")
-        model_id.change(
-            fn=update_load_dir,
-            inputs=model_id,
-            outputs=load_dir
-        )
         model_id.change(
             fn=update_save_dir,
             inputs=model_id,
@@ -159,12 +152,18 @@ def build_monitor_tab() -> None:
             return gr.update(visible=lora)
         lora.change(fn=lora_config_update,inputs=lora,outputs=row_lora)
         def save_visible(lora: bool) -> gr.Textbox:
-            return gr.udpate(visible=not lora)
+            return gr.update(visible= not lora)
         lora.change(fn=save_visible,inputs=lora,outputs=save_dir)
         def lora_load_update(model_id: str) -> gr.Textbox:
             return gr.update(label="lora训练后的checkpoint目录", value=f"./tune_lora_ckpt/{model_id}/")
+        def update_load_dir(lora: bool, model_id: str) -> gr.Textbox:
+            if lora:
+                return gr.update(value=f"./models_mcore_weights/{model_id}/")
+            else:
+                return gr.update(value=f"./ckpt/{model_id}/")
+        gr.on(triggers=[lora.change, model_id.change], fn=update_load_dir, inputs=[lora, model_id], outputs=load_dir)
         
-        md = gr.Markdown("> 💡 提示:此处应与最初下载时配置相同")
+        md = gr.Markdown("> 💡 提示:此处若无特殊要求应保持全为1,否则出错!")
         with gr.Row():
             tp = gr.Number(
                 label="TP",
@@ -176,7 +175,7 @@ def build_monitor_tab() -> None:
             pp = gr.Number(
                 label="PP",
                 info="pipeline-parallel-size",
-                value=4,
+                value=1,
                 precision=0,
                 interactive=True
             )

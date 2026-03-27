@@ -16,5 +16,4 @@ python convert_ckpt.py \
     --load-dir ${LOAD_DIR} \
     --lora-load ${LORA_LOAD} \
     --save-dir ${ORI_DIR} \
-    --model-type-hf qwen3 \
-    --save-lora-to-hf \
+    --model-type-hf qwen3

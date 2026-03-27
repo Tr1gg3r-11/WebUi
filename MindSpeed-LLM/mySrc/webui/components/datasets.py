@@ -108,7 +108,7 @@ def build_datasets_tab() -> None:
             outputs = seq_length
         )
         def tokenizer_path_change(model_id: gr.Dropdown):
-            return gr.update(value=f"./models_from_hf/{model_id}-hf/")
+            return gr.update(value=f"./models_from_hf/{model_id}/")
         model_id.change(
             fn=tokenizer_path_change,
             inputs=[model_id],

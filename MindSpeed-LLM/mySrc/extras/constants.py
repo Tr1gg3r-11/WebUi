@@ -2,10 +2,6 @@ RUNNING_LOG = "running_log.txt"
 
 SUPPORTED_MODEL=["Qwen3-0.6B", "Qwen2.5-0.5B", "Test_Other"]
 
-SFT_FULL = {}
-SFT_LORA = {}
-PRETRAIN = {}
-
 MINIMUM = {
     'TP' : 1,
     'PP' : 1,
@@ -53,6 +49,8 @@ status_map = {
 }
 
 DATASET_SEQ=[
+    "Qwen2.5-0.5B_SFT(全参)_pack",
+    "Qwen2.5-0.5B_SFT(LoRA)_pack"
 ]
 
 DATASETS_SH={
@@ -88,8 +86,8 @@ MODEL_CONVERT_MCORE2HF_LORA_SH={
 PRETRAIN_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/pretrain_qwen3_0point6b_4K_ptd.sh",
     "Qwen3-0.6B_pack":"examples/mcore/qwen3/pretrain_qwen3_0point6b_4K_ptd.sh",
-    "Qwen2.5-0.5B":"examples/mcore/qwen3/pretrain_qwen25_0point5b_32k_ptd.sh",
-    "Qwen2.5-0.5B_pack":"examples/mcore/qwen3/pretrain_qwen25_0point5b_32k_ptd.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/pretrain_qwen25_0point5b_32k_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen25/pretrain_qwen25_0point5b_32k_ptd.sh",
 }
 SFT_LORA_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/tune_qwen3_0point6b_4K_lora_ptd.sh",
@@ -100,6 +98,6 @@ SFT_LORA_SH={
 SFT_SH={
     "Qwen3-0.6B":"examples/mcore/qwen3/tune_qwen3_0point6b_4K_full_ptd.sh",
     "Qwen3-0.6B_pack":"examples/mcore/qwen3/tune_qwen3_0point6b_4K_full_ptd.sh",
-    "Qwen2.5-0.5B":"examples/mcore/qwen3/tune_qwen25_0point5b_4k_full_ptd.sh",
-    "Qwen2.5-0.5B_pack":"examples/mcore/qwen3/tune_qwen25_0point5b_4k_full_pack.sh",
+    "Qwen2.5-0.5B":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_full_ptd.sh",
+    "Qwen2.5-0.5B_pack":"examples/mcore/qwen25/tune_qwen25_0point5b_4k_full_pack.sh",
 }

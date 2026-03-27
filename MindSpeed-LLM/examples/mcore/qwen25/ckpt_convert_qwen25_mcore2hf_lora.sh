@@ -17,4 +17,4 @@ python convert_ckpt.py \
     --lora-target-modules linear_qkv linear_proj linear_fc1 linear_fc2 \
     --load-dir ${LOAD_DIR} \
     --lora-load ${LORA_LOAD} \
-    --save-dir ${ORI_DIR}  # 需要填入原始HF模型路径，新权重会存于 ${SAVE_DIR}mg2hg/
+    --save-dir ${ORI_DIR}
