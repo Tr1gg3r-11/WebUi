@@ -18,7 +18,7 @@ train_thread :Optional[threading.Thread] = None
 stop_training = threading.Event()
 training_completed = threading.Event()
 training_stopped = threading.Event()
-def get_train_config(shared_pack: bool,
+def get_train_config(pack: bool,
                      model_id: str,
                      mode: str,
                      npus: int,
@@ -42,7 +42,7 @@ def get_train_config(shared_pack: bool,
                      lora_alpha: int,
                      lora_fusion: bool) -> list[gr.Tabs, gr.HTML]:
     config = {}
-    config['pack'] = shared_pack
+    config['pack'] = pack
     config['model_id'] = model_id
     config['mode'] = mode
     config['NPUS_PER_NODE'] = npus
